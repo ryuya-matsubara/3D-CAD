@@ -476,9 +476,8 @@ footer span {margin-right:auto}
 
 .stage.pinned {position:sticky;top:0;z-index:3;align-self:start}
 .stage.pinned #viewport {height:min(48svh,520px)}
-.dimension-marker {position:absolute;transform:translate(-50%,-100%);background:#214633;color:white;border:1px solid white;border-radius:50%;padding:0 4px;min-width:19px;text-align:center;font:bold 13px/19px monospace;pointer-events:auto}
-#measurement {position:absolute;z-index:2;right:8px;top:8px;max-height:46%;width:min(34%,240px);overflow:auto;overscroll-behavior:contain;background:#fffffff2;border:1px solid var(--line);border-radius:6px}
-#measurement button {display:grid;text-align:left;width:100%;padding:5px;font-size:.78rem;border:0;border-bottom:1px solid var(--line);background:transparent}
-#measurement span {font-weight:400}
 #measure[aria-pressed=true],#pin[aria-pressed=true] {background:#cee7cd}
-@media(max-width:760px){.stage.pinned #viewport {height:min(32svh,300px)} #measurement {top:54px;width:40%;max-height:49%}}
+@media(max-width:760px){.stage.pinned #viewport {height:min(32svh,300px)}}
+
+.metrics div {display:flex;align-items:baseline;gap:12px}
+#dimension-lines {position:absolute;inset:0;pointer-events:none;width:100%;height:100%}

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-export function createView(host) {
+export function createView(host, onPick) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe5eae7);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -41,7 +41,81 @@ export function createView(host) {
     view = "iso";
   const axisCanvas = host.querySelector("#axis");
   const ctx = axisCanvas.getContext("2d");
-  let markers = [];
+  let runs = [], selection, measure = false;
+  const highlight = material.clone();
+  highlight.color.set(0x37aab0);
+  const overlay = host.querySelector("#dimension-lines");
+  const pen = overlay.getContext("2d");
+  const ray = new THREE.Raycaster();
+  const pointers = new Set();
+  let tap;
+  const surface = renderer.domElement;
+  surface.addEventListener("pointerdown", e => {
+    pointers.add(e.pointerId);
+    tap = pointers.size === 1 && e.button === 0 ? [e.clientX,e.clientY] : null;
+  });
+  surface.addEventListener("pointermove", e => {
+    if (tap && Math.hypot(e.clientX-tap[0],e.clientY-tap[1]) > 5) tap = null;
+  });
+  surface.addEventListener("pointercancel", e => { pointers.delete(e.pointerId); tap=null; });
+  surface.addEventListener("pointerup", e => {
+    pointers.delete(e.pointerId);
+    if (!tap || !mesh) return;
+    tap=null;
+    const r=surface.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(2*(e.clientX-r.left)/r.width-1,1-2*(e.clientY-r.top)/r.height),camera);
+    const hit=ray.intersectObject(mesh,false)[0];
+    const index=hit?.faceIndex*3;
+    onPick(runs.find(run=>index>=run.start && index<run.start+run.count)?.id);
+  });
+  function drawDimensions() {
+    const w=host.clientWidth,h=host.clientHeight,ratio=renderer.getPixelRatio();
+    pen.setTransform(ratio,0,0,ratio,0,0);
+    pen.clearRect(0,0,w,h);
+    if (!selection || !measure) return;
+    const f=selection;
+    const project = coords => {
+      const p=new THREE.Vector3(...coords).project(camera);
+      return [(1+p.x)*w/2,(1-p.y)*h/2];
+    };
+    function line(a,b) {
+      pen.beginPath();pen.moveTo(...a);pen.lineTo(...b);pen.stroke();
+    }
+    function dimension(from,to,label,offset) {
+      const a=project(from),b=project(to);
+      const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);
+      if(len<1) return;
+      const ux=dx/len,uy=dy/len,nx=-uy,ny=ux;
+      const ends=[a,b].map(p=>[p[0]+offset*nx,p[1]+offset*ny]);
+      pen.strokeStyle="#18435c";pen.lineWidth=1.4;
+      line(a,ends[0]);line(b,ends[1]);line(...ends);
+      for(const [i,end] of ends.entries()) {
+        const sign=i===0?1:-1;
+        for(const side of [-1,1]) line(end,[end[0]+sign*ux*5+nx*side*2,end[1]+sign*uy*5+ny*side*2]);
+      }
+      pen.save();pen.translate((ends[0][0]+ends[1][0])/2,(ends[0][1]+ends[1][1])/2);
+      let angle=Math.atan2(dy,dx);if(Math.abs(angle)>Math.PI/2) angle+=Math.PI;
+      pen.rotate(angle);pen.textAlign="center";pen.font="bold 12px sans-serif";
+      pen.strokeStyle="white";pen.lineWidth=3;pen.strokeText(label,0,-4);
+      pen.fillStyle="#153448";pen.fillText(label,0,-4);pen.restore();
+    }
+    const {x,y}=f, z=f.type==="hole" ? holeTop : f.z+f.height;
+    if(f.type==="box") {
+      const l=x-f.width/2,r=x+f.width/2,b=y-f.depth/2,t=y+f.depth/2;
+      dimension([l,b+f.radius,z],[r,b+f.radius,z],f.width+" mm",24);
+      dimension([r-f.radius,b,z],[r-f.radius,t,z],f.depth+" mm",20);
+      dimension([r,y,f.z],[r,y,z],f.height+" mm",20);
+      if(f.radius) {
+        const cx=l+f.radius,cy=t-f.radius,d=f.radius/Math.sqrt(2);
+        dimension([cx,cy,z],[cx-d,cy+d,z],"R"+f.radius+" mm",-10);
+      }
+    } else {
+      const r=f.diameter/2;
+      dimension([x-r,y,z],[x+r,y,z],"Ø"+f.diameter+" mm",-10);
+      if(f.type==="cylinder") dimension([x+r,y,f.z],[x+r,y,z],f.height+" mm",18);
+    }
+  }
+  let holeTop=0;
   function render() {
     ctx.clearRect(0,0,160,160);
     const inverse = camera.quaternion.clone().invert();
@@ -54,17 +128,14 @@ export function createView(host) {
       ctx.font = "bold 24px sans-serif"; ctx.fillText("XYZ"[index],x+2,y-2);
     }
     renderer.render(scene, camera);
-    for (const marker of markers) {
-      const point = marker.position.clone().project(camera);
-      marker.label.style.left = ((point.x+1)*50) + "%";
-      marker.label.style.top = ((1-point.y)*50) + "%";
-    }
+    drawDimensions();
   }
   function resize() {
     const w = host.clientWidth,
       h = host.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h);
+    overlay.width=Math.round(w*renderer.getPixelRatio()); overlay.height=Math.round(h*renderer.getPixelRatio());
     const ratio = w / h,
       half = span / 2;
     camera.left = -half * Math.max(1, ratio);
@@ -122,7 +193,9 @@ export function createView(host) {
         );
         geometry.setIndex(new THREE.BufferAttribute(data.triangles, 1));
         geometry.computeVertexNormals();
-        mesh = new THREE.Mesh(geometry, material);
+        runs=data.runs;
+        for(const run of runs) geometry.addGroup(run.start,run.count,0);
+        mesh = new THREE.Mesh(geometry, [material,highlight]);
         edges = new THREE.LineSegments(
           new THREE.EdgesGeometry(geometry, 25),
           ink,
@@ -139,18 +212,23 @@ export function createView(host) {
       camera.updateProjectionMatrix();
       render();
     },
-    markers(items) {
-      for (const marker of markers) marker.label.remove();
-      markers = items.map(({number,x,y,z,select}) => {
-        const label = document.createElement("button");
-        label.className = "dimension-marker";
-        label.textContent = number;
-        label.type = "button";
-        label.setAttribute("aria-label", "形状 " + number + " の選択を切り替え");
-        label.onclick = select;
-        host.append(label);
-        return {label, position:new THREE.Vector3(x,y,z)};
-      });
+    select(feature, visible) {
+      selection=feature;
+      measure=visible;
+      if(mesh) {
+        holeTop=bounds.max[2];
+        let top=-Infinity;
+        mesh.geometry.groups.forEach((group,i)=>{
+          const active=!!feature && runs[i].id===feature.id;
+          group.materialIndex=active?1:0;
+          if(active && feature.type==="hole") {
+            const geo=mesh.geometry;
+            for(let n=group.start;n<group.start+group.count;n++)
+              top=Math.max(top,geo.attributes.position.getZ(geo.index.getX(n)));
+          }
+        });
+        if(Number.isFinite(top)) holeTop=top;
+      }
       render();
     },
   };

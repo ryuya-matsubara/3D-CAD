@@ -149,7 +149,6 @@ function show(next, data, refit = false) {
         .map((v, i) => format(v - mesh.bounds.min[i]))
         .join(" × ") + " mm"
     : "—";
-  $("volume").textContent = mesh ? format(mesh.volume / 1000) + " cm³" : "—";
   renderEditor();
 }
 function remember(stack, value) {
@@ -362,22 +361,8 @@ $("undo").onclick = () => commit(undo.at(-1), "undo");
 $("redo").onclick = () => commit(redo.at(-1), "redo");
 $("fit").onclick = () => viewer?.fit();
 function updateDimensions() {
-  const panel = $("measurement");
-  panel.replaceChildren();
-  const features = model?.features || [];
-  const visible = $("measure").getAttribute("aria-pressed") === "true";
-  panel.hidden = !visible || !features.length;
-  const shown = visible ? features.filter(f => !selected || f.id === selected) : [];
-  const markers = [];
-  for (const f of shown) {
-    const number = features.indexOf(f) + 1;
-    const row = button("", () => { selected = selected === f.id ? undefined : f.id; renderEditor(); });
-    row.append(el("strong", number + "　" + f.name), el("span",
-      dimensions[f.type].map(key => labels[key] + " " + f[key]).join(" ／ ") + " mm"));
-    panel.append(row);
-    markers.push({number, select:row.onclick, x:f.x, y:f.y, z:f.type === "hole" ? mesh?.bounds.max[2] ?? 0 : f.z + f.height});
-  }
-  viewer?.markers(markers);
+  viewer?.select(model?.features.find(f => f.id === selected),
+    $("measure").getAttribute("aria-pressed") === "true");
 }
 $("measure").onclick = () => {
   const visible = $("measure").getAttribute("aria-pressed") !== "true";
@@ -473,7 +458,13 @@ try {
   kernel = await init({ locateFile: () => wasm });
   kernel.setup();
   try {
-    viewer = createView($("viewport"));
+    viewer = createView($("viewport"), id => {
+      if (!ready || busy) return;
+      selected = id === selected ? undefined : id;
+      renderEditor();
+      const row = $("tree").querySelector('[aria-pressed="true"]');
+      if (row) $("tree").scrollTop += row.getBoundingClientRect().top - $("tree").getBoundingClientRect().top;
+    });
   } catch {
     note(
       "3D表示にはWebGL 2対応ブラウザが必要です。寸法編集と出力は使用できます。",

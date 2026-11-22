@@ -4,6 +4,7 @@ import { validate } from "./model.js";
 export function buildSolid(kernel, model) {
   validate(model);
   const { Manifold, CrossSection } = kernel;
+  const owners = new Map();
   let solid;
   try {
     for (const f of model.features) {
@@ -38,7 +39,9 @@ export function buildSolid(kernel, model) {
             Manifold.cylinder(height, f.diameter / 2, f.diameter / 2, 96),
           );
         }
-        const placed = keep(piece.translate([f.x, f.y, bottom]));
+        const translated = keep(piece.translate([f.x, f.y, bottom]));
+        const placed = keep(translated.asOriginal());
+        owners.set(placed.originalID(), f.id);
         const next = solid
           ? f.type === "hole"
             ? solid.subtract(placed)
@@ -56,6 +59,7 @@ export function buildSolid(kernel, model) {
       throw Error("立体を計算できませんでした。寸法を確認してください。");
     const mesh = solid.getMesh();
     return {
+      runs: Array.from(mesh.runOriginalID, (id, i) => ({id: owners.get(id), start: mesh.runIndex[i], count: mesh.runIndex[i+1]-mesh.runIndex[i]})),
       vertices: mesh.vertProperties.slice(),
       triangles: mesh.triVerts.slice(),
       bounds: solid.boundingBox(),
