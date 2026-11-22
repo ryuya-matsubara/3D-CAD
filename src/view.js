@@ -41,6 +41,7 @@ export function createView(host) {
     view = "iso";
   const axisCanvas = host.querySelector("#axis");
   const ctx = axisCanvas.getContext("2d");
+  let markers = [];
   function render() {
     ctx.clearRect(0,0,160,160);
     const inverse = camera.quaternion.clone().invert();
@@ -53,6 +54,11 @@ export function createView(host) {
       ctx.font = "bold 24px sans-serif"; ctx.fillText("XYZ"[index],x+2,y-2);
     }
     renderer.render(scene, camera);
+    for (const marker of markers) {
+      const point = marker.position.clone().project(camera);
+      marker.label.style.left = ((point.x+1)*50) + "%";
+      marker.label.style.top = ((1-point.y)*50) + "%";
+    }
   }
   function resize() {
     const w = host.clientWidth,
@@ -133,8 +139,18 @@ export function createView(host) {
       camera.updateProjectionMatrix();
       render();
     },
-    grid(on) {
-      grid.visible = on;
+    markers(items) {
+      for (const marker of markers) marker.label.remove();
+      markers = items.map(({number,x,y,z,select}) => {
+        const label = document.createElement("button");
+        label.className = "dimension-marker";
+        label.textContent = number;
+        label.type = "button";
+        label.setAttribute("aria-label", "形状 " + number + " の選択を切り替え");
+        label.onclick = select;
+        host.append(label);
+        return {label, position:new THREE.Vector3(x,y,z)};
+      });
       render();
     },
   };

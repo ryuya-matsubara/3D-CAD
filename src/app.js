@@ -75,10 +75,10 @@ function renderEditor() {
   const tree = $("tree");
   tree.replaceChildren();
   if (!model.features.some((f) => f.id === selected))
-    selected = model.features[0]?.id;
+    selected = undefined;
   for (const f of model.features) {
     const row = button("", () => {
-      selected = f.id;
+      selected = selected === f.id ? undefined : f.id;
       renderEditor();
     });
     row.className = "shape";
@@ -97,6 +97,7 @@ function renderEditor() {
   }
   const f = model.features.find((s) => s.id === selected);
   $("inspector").hidden = !f;
+  updateDimensions();
   dirty = false;
   $("fields").replaceChildren();
   if (f) {
@@ -149,7 +150,6 @@ function show(next, data, refit = false) {
         .join(" × ") + " mm"
     : "—";
   $("volume").textContent = mesh ? format(mesh.volume / 1000) + " cm³" : "—";
-  $("measurement").textContent = mesh ? mesh.bounds.max.map((v,i) => "XYZ"[i] + " " + format(v-mesh.bounds.min[i]) + " mm").join("　") : "";
   renderEditor();
 }
 function remember(stack, value) {
@@ -361,18 +361,36 @@ $("remove").onclick = () =>
 $("undo").onclick = () => commit(undo.at(-1), "undo");
 $("redo").onclick = () => commit(redo.at(-1), "redo");
 $("fit").onclick = () => viewer?.fit();
+function updateDimensions() {
+  const panel = $("measurement");
+  panel.replaceChildren();
+  const features = model?.features || [];
+  const visible = $("measure").getAttribute("aria-pressed") === "true";
+  panel.hidden = !visible || !features.length;
+  const shown = visible ? features.filter(f => !selected || f.id === selected) : [];
+  const markers = [];
+  for (const f of shown) {
+    const number = features.indexOf(f) + 1;
+    const row = button("", () => { selected = selected === f.id ? undefined : f.id; renderEditor(); });
+    row.append(el("strong", number + "　" + f.name), el("span",
+      dimensions[f.type].map(key => labels[key] + " " + f[key]).join(" ／ ") + " mm"));
+    panel.append(row);
+    markers.push({number, select:row.onclick, x:f.x, y:f.y, z:f.type === "hole" ? mesh?.bounds.max[2] ?? 0 : f.z + f.height});
+  }
+  viewer?.markers(markers);
+}
 $("measure").onclick = () => {
   const visible = $("measure").getAttribute("aria-pressed") !== "true";
   $("measure").setAttribute("aria-pressed", String(visible));
-  $("measurement").hidden = !visible;
+  updateDimensions();
+};
+$("pin").onclick = () => {
+  const pinned = document.querySelector(".stage").classList.toggle("pinned");
+  $("pin").setAttribute("aria-pressed", String(pinned));
+  $("pin").textContent = pinned ? "固定を解除" : "ビューを固定";
 };
 $("zoomIn").onclick = () => viewer?.zoom(1.25);
 $("zoomOut").onclick = () => viewer?.zoom(0.8);
-$("grid").onclick = () => {
-  const on = $("grid").getAttribute("aria-pressed") !== "true";
-  $("grid").setAttribute("aria-pressed", on);
-  viewer?.grid(on);
-};
 $("export").onclick = () => {
   const save = (ext) => {
     const bytes = ext === "stl" ? binarySTL(mesh) : threeMF(mesh);

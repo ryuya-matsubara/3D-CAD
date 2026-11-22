@@ -39,9 +39,9 @@
           </div>
           <div id="viewport" aria-label="3Dモデルのプレビュー">
             <div class="viewControls">
-              <button id="measure" aria-pressed="true">寸法</button><button id="grid" aria-pressed="true">グリッド</button>
+              <button id="measure" aria-pressed="false">寸法</button><button id="pin" aria-pressed="false">ビューを固定</button>
             </div>
-            <canvas id="axis" width="160" height="160" aria-label="XYZ座標軸"></canvas><output id="measurement"></output><div class="zoom">
+            <canvas id="axis" width="160" height="160" aria-label="XYZ座標軸"></canvas><div id="measurement" aria-label="形状の寸法" hidden></div><div class="zoom">
               <button id="zoomOut" aria-label="縮小">−</button
               ><button id="fit">全体表示</button
               ><button id="zoomIn" aria-label="拡大">＋</button>
