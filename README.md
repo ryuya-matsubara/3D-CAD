@@ -1,4 +1,4 @@
-# Katachi CAD
+# 3D CAD
 
 スマホのブラウザでプレート、円柱、貫通穴を組み合わせ、mm単位で立体を編集できます。GitHub Pagesが操作画面を配信し、Cloudflare WorkersのDurable Objectsが共有プロジェクトをSQLiteに保存します。
 

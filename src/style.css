@@ -467,3 +467,11 @@ dialog output {
     min-height: 36px;
   }
 }
+
+#axis {position:absolute; bottom:4px; left:4px; width:72px;height:72px;pointer-events:none}
+#measurement {position:absolute;top:54px;left:12px;padding:3px 8px;border-radius:4px;background:#fffffff0;font:600 .85rem monospace;pointer-events:none}
+#measurement:empty {display:none}
+.movement {display:flex;gap:4px;margin-top:3px}
+.movement button {flex:1;padding:4px;min-height:36px}
+footer {flex-wrap:wrap}
+footer span {margin-right:auto}

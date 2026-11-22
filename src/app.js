@@ -62,7 +62,7 @@ function localModel() {
 function controls() {
   const blocked = !ready || busy;
   for (const b of document.querySelectorAll(
-    "[data-add],#rename,#remove,#inspector button,#inspector input,#share,#tree button",
+    "[data-add],#rename,#remove,#inspector button,#inspector input,#share,#saveModel,#openModel,#tree button",
   ))
     b.disabled = blocked;
   $("undo").disabled = blocked || !undo.length;
@@ -116,7 +116,23 @@ function renderEditor() {
           : 0.01;
       input.max = 5000;
       label.append(input);
-      $("fields").append(label);
+      const cell = el("div");
+      cell.append(label);
+      if (["x", "y", "z"].includes(key)) {
+        if (key === "x") cell.style.gridColumnStart = "1";
+        const movement = el("div");
+        movement.className = "movement";
+        for (const delta of [-1, 1]) {
+          const move = button(delta > 0 ? "+" : "−", () => {
+            input.value = Number((input.valueAsNumber + delta).toFixed(6));
+            $("inspector").requestSubmit();
+          });
+          move.setAttribute("aria-label", labels[key] + " " + delta + " mm移動");
+          movement.append(move);
+        }
+        cell.append(movement);
+      }
+      $("fields").append(cell);
     }
   }
   controls();
@@ -133,6 +149,7 @@ function show(next, data, refit = false) {
         .join(" × ") + " mm"
     : "—";
   $("volume").textContent = mesh ? format(mesh.volume / 1000) + " cm³" : "—";
+  $("measurement").textContent = mesh ? mesh.bounds.max.map((v,i) => "XYZ"[i] + " " + format(v-mesh.bounds.min[i]) + " mm").join("　") : "";
   renderEditor();
 }
 function remember(stack, value) {
@@ -177,6 +194,12 @@ async function commit(next, kind = "edit", nextSelection = selected) {
       redo = [];
     }
     const refit = !mesh;
+    if (kind !== "edit") {
+      const previous = new Map(model.features.map(f => [f.id, f]));
+      const changed = next.features.find(f => JSON.stringify(previous.get(f.id)) !== JSON.stringify(f));
+      const removedIndex = model.features.findIndex(f => !next.features.some(other => other.id === f.id));
+      nextSelection = changed?.id ?? next.features[Math.min(removedIndex, next.features.length - 1)]?.id ?? nextSelection;
+    }
     selected = nextSelection;
     show(next, geometry, refit);
     synced();
@@ -337,8 +360,12 @@ $("remove").onclick = () =>
   });
 $("undo").onclick = () => commit(undo.at(-1), "undo");
 $("redo").onclick = () => commit(redo.at(-1), "redo");
-$("camera").onchange = (e) => viewer?.fit(e.target.value);
-$("fit").onclick = () => viewer?.fit($("camera").value);
+$("fit").onclick = () => viewer?.fit();
+$("measure").onclick = () => {
+  const visible = $("measure").getAttribute("aria-pressed") !== "true";
+  $("measure").setAttribute("aria-pressed", String(visible));
+  $("measurement").hidden = !visible;
+};
 $("zoomIn").onclick = () => viewer?.zoom(1.25);
 $("zoomOut").onclick = () => viewer?.zoom(0.8);
 $("grid").onclick = () => {
@@ -370,6 +397,30 @@ $("export").onclick = () => {
     button("3MF を保存", () => save("3mf")),
     button("STL を保存", () => save("stl")),
   );
+};
+$("saveModel").onclick = () => {
+  if (dirty) return note("先に変更を適用してください。");
+  const url = URL.createObjectURL(new Blob([JSON.stringify(model)], {type:"application/json"}));
+  const link = el("a");
+  link.href = url;
+  link.download = model.title + ".3dcad.json";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+};
+$("openModel").onclick = () => $("modelFile").click();
+$("modelFile").onchange = async () => {
+  const file = $("modelFile").files[0];
+  $("modelFile").value = "";
+  if (!file) return;
+  try {
+    if (file.size > 65536) throw Error("モデルファイルが大きすぎます。");
+    const next = validate(JSON.parse(await file.text()));
+    dialog("モデルを開く", el("p", "現在のモデルを「" + next.title + "」に置き換えます。"), button("開く", async () => {
+      if (await commit(next)) { viewer?.fit(); $("modal").close(); }
+    }));
+  } catch (error) { note(error.message); }
 };
 $("newModel").onclick = () => {
   const { label, input } = field("新しいモデル名", "新規モデル");

@@ -39,7 +39,19 @@ export function createView(host) {
     bounds,
     span = 105,
     view = "iso";
+  const axisCanvas = host.querySelector("#axis");
+  const ctx = axisCanvas.getContext("2d");
   function render() {
+    ctx.clearRect(0,0,160,160);
+    const inverse = camera.quaternion.clone().invert();
+    for (const [index,color] of ["#a02824","#227140","#275aab"].entries()) {
+      const vector = new THREE.Vector3().setComponent(index,1).applyQuaternion(inverse);
+      const x = 80 + 45*vector.x, y = 80 - 45*vector.y;
+      ctx.strokeStyle = ctx.fillStyle = color;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(80,80); ctx.lineTo(x,y); ctx.stroke();
+      ctx.font = "bold 24px sans-serif"; ctx.fillText("XYZ"[index],x+2,y-2);
+    }
     renderer.render(scene, camera);
   }
   function resize() {
