@@ -1,0 +1,21 @@
+{
+  "name": "katachi-cad",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:sync": "wrangler dev --port 8787",
+    "build": "vite build --base=./",
+    "deploy:sync": "wrangler deploy",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "fflate": "0.8.3",
+    "manifold-3d": "3.5.5",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.8",
+    "wrangler": "4.166.0"
+  }
+}
