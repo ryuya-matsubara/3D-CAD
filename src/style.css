@@ -1,2 +1,469 @@
-:root{font:16px/1.5 system-ui,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;color:#172b24;background:#f5f7f3;font-synthesis:none;--line:#d2d9d2;--forest:#1a3d30;--accent:#c5ed9d}*{box-sizing:border-box}body{margin:0}button,select,input{font:inherit;color:inherit}button,select{cursor:pointer}button{border:1px solid var(--line);background:white;border-radius:7px;padding:.45rem .75rem;font-weight:650}button:hover:enabled{filter:brightness(.94)}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #818bf5;outline-offset:2px}button:disabled{opacity:.42;cursor:default}button[hidden],[hidden]{display:none!important}header{display:flex;align-items:center;justify-content:space-between;padding:0 max(4vw,18px);min-height:68px;background:#182b24;color:white;gap:12px}.brand{display:flex;gap:8px;align-items:center;font-size:1.35rem;font-weight:750;letter-spacing:-.05em}.brand b{font:600 .73rem/1.4 monospace;letter-spacing:.06em;border:1px solid #738779;border-radius:4px;padding:1px 5px;color:#d6e0d8}.brandmark{color:var(--accent);font:2.35rem/1 sans-serif}.headActions,.history,.viewControls,.zoom{display:flex;gap:6px}.headActions button{background:#293e34;color:white;border-color:#536459;font-size:.9rem;padding:.52rem .85rem}.headActions .primary{color:#1c3727;background:var(--accent);border-color:var(--accent)}main{max-width:1600px;margin:auto;padding:0 clamp(12px,4vw,64px)}.heading,.panelTitle,.treeTitle,.stageHead,footer,.dialogHead{display:flex;align-items:center;justify-content:space-between;gap:10px}.heading{padding:24px 0 19px}.eyebrow,footer>span{font:650 .74rem/1.3 ui-monospace,monospace;letter-spacing:.13em;color:#607367}h1,h2,h3{margin:0}h1 button{border:0;background:transparent;padding:0;text-align:left;font-size:clamp(1.35rem,3vw,2rem);letter-spacing:-.055em;overflow-wrap:anywhere}.heading>div:first-child{min-width:0}#status{font-size:.85rem;color:#466453;white-space:nowrap;background:#e5ece3;border:1px solid #d4ded2;padding:4px 10px;border-radius:30px}.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,335px);gap:16px;align-items:start}.stage,aside{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.stageHead,.panelTitle{height:53px;padding:0 17px;border-bottom:1px solid var(--line)}.stageHead strong,h2{font-size:1rem;letter-spacing:.02em}.greenSquare{display:inline-block;background:#628870;width:9px;height:9px;margin-right:9px;border-radius:2px}.unit,.treeTitle span,small{color:#596c61;font-size:.81rem}#viewport{height:clamp(360px,59vh,730px);position:relative;overflow:hidden;background:#e5eae7}canvas{display:block;width:100%;height:100%;touch-action:none}.viewControls,.zoom{position:absolute;z-index:1}.viewControls{top:12px;left:12px}.zoom{bottom:12px;right:12px}.viewControls button,.viewControls select,.zoom button{border:1px solid #b8c6bc;border-radius:6px;background:#fafcf8eb;font-size:.85rem;padding:6px 9px;font-weight:600}.zoom button{min-width:36px}.metrics{display:flex;border-top:1px solid var(--line);padding:13px 18px;gap:35px}.metrics div{display:grid;gap:3px}.metrics strong{font:600 .95rem/1.4 ui-monospace,monospace}.history button,#remove{font-size:1.1rem;padding:1px 8px}.palette{display:flex;gap:5px;padding:14px 13px}.palette button{flex:1;white-space:nowrap;font-size:.85rem;padding:7px 2px;background:#f0f4ee}.treeTitle{padding:6px 16px}h3{font-size:.88rem}.treeTitle span{font-family:monospace}#tree{max-height:172px;overflow:auto;margin:0 9px 11px;scrollbar-width:thin}.shape{width:100%;display:flex;align-items:center;gap:9px;text-align:left;background:none;border:1px solid transparent;font-size:.875rem;padding:6px 10px}.shape span:first-child{font:700 1rem monospace;color:#47785d}.shape span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.shape small{margin-left:auto;white-space:nowrap;font:500 .75rem monospace}.shape[aria-pressed=true]{background:#e1efdf;border-color:#b7d4b6}#inspector{border-top:1px solid var(--line);padding:11px 15px 15px}#inspector .treeTitle{padding:0 0 7px}#remove{font-size:.78rem;border:0;color:#984d3c}.nameLabel,#fields label,dialog label{display:grid;gap:2px;font-size:.8rem;color:#4d6255}input,dialog select{width:100%;min-width:0;padding:6px 8px;border:1px solid #c4cfc5;background:#fbfcfa;border-radius:5px;font-size:1rem}#fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:8px 0 12px}.apply{background:var(--forest);color:white;border-color:var(--forest);width:100%;font-size:.9rem}.metrics small{font-weight:600}footer{padding:13px 2px 20px}footer button{font-size:.82rem}#empty{position:absolute;inset:45% 10px auto;text-align:center;pointer-events:none}dialog{border:1px solid var(--line);border-radius:12px;width:min(420px,92vw);padding:19px;color:inherit}dialog::backdrop{background:#142b24aa}.dialogHead button{border:0;padding:0 8px;font-size:1.3rem}#dialogBody{display:grid;gap:14px;margin-top:12px}#dialogBody p{margin:0;font-size:.91rem}#notice{position:fixed;z-index:4;bottom:20px;left:50%;transform:translateX(-50%);max-width:90vw;width:max-content;border-radius:8px;background:#20372b;color:white;padding:9px 16px;font-size:.9rem}dialog output{font-size:.86rem;color:#964522}
-@media(max-width:760px){header{min-height:56px;padding:0 12px}.brand{gap:4px;font-size:1.05rem}.brandmark{font-size:1.8rem}.headActions button{font-size:.8rem;padding:8px}.heading{padding:13px 0 10px}#status{font-size:.74rem}.workspace{grid-template-columns:1fr;gap:10px}#viewport{height:clamp(260px,42svh,440px)}.stageHead,.panelTitle{height:42px}.metrics{padding:8px 13px;gap:22px}.metrics strong{font-size:.85rem}.eyebrow{font-size:.68rem}.palette button,.apply{min-height:42px}.shape{min-height:39px}#tree{max-height:142px}#fields input{min-height:42px}.zoom button,.viewControls button,.viewControls select{min-height:36px}}
+:root {
+  font:
+    16px/1.5 system-ui,
+    "Hiragino Kaku Gothic ProN",
+    Meiryo,
+    sans-serif;
+  color: #172b24;
+  background: #f5f7f3;
+  font-synthesis: none;
+  --line: #d2d9d2;
+  --forest: #1a3d30;
+  --accent: #c5ed9d;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+button,
+select {
+  cursor: pointer;
+}
+button {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 7px;
+  padding: 0.45rem 0.75rem;
+  font-weight: 650;
+}
+button:hover:enabled {
+  filter: brightness(0.94);
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #818bf5;
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+button[hidden],
+[hidden] {
+  display: none !important;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(4vw, 18px);
+  min-height: 68px;
+  background: #182b24;
+  color: white;
+  gap: 12px;
+}
+.brand {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+}
+.brand b {
+  font: 600 0.73rem/1.4 monospace;
+  letter-spacing: 0.06em;
+  border: 1px solid #738779;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #d6e0d8;
+}
+.brandmark {
+  color: var(--accent);
+  font: 2.35rem/1 sans-serif;
+}
+.headActions,
+.history,
+.viewControls,
+.zoom {
+  display: flex;
+  gap: 6px;
+}
+.headActions button {
+  background: #293e34;
+  color: white;
+  border-color: #536459;
+  font-size: 0.9rem;
+  padding: 0.52rem 0.85rem;
+}
+.headActions .primary {
+  color: #1c3727;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+main {
+  max-width: 1600px;
+  margin: auto;
+  padding: 0 clamp(12px, 4vw, 64px);
+}
+.heading,
+.panelTitle,
+.treeTitle,
+.stageHead,
+footer,
+.dialogHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.heading {
+  padding: 24px 0 19px;
+}
+.eyebrow,
+footer > span {
+  font:
+    650 0.74rem/1.3 ui-monospace,
+    monospace;
+  letter-spacing: 0.13em;
+  color: #607367;
+}
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+h1 button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+}
+.heading > div:first-child {
+  min-width: 0;
+}
+#status {
+  font-size: 0.85rem;
+  color: #466453;
+  white-space: nowrap;
+  background: #e5ece3;
+  border: 1px solid #d4ded2;
+  padding: 4px 10px;
+  border-radius: 30px;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 335px);
+  gap: 16px;
+  align-items: start;
+}
+.stage,
+aside {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.stageHead,
+.panelTitle {
+  height: 53px;
+  padding: 0 17px;
+  border-bottom: 1px solid var(--line);
+}
+.stageHead strong,
+h2 {
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+.greenSquare {
+  display: inline-block;
+  background: #628870;
+  width: 9px;
+  height: 9px;
+  margin-right: 9px;
+  border-radius: 2px;
+}
+.unit,
+.treeTitle span,
+small {
+  color: #596c61;
+  font-size: 0.81rem;
+}
+#viewport {
+  height: clamp(360px, 59vh, 730px);
+  position: relative;
+  overflow: hidden;
+  background: #e5eae7;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.viewControls,
+.zoom {
+  position: absolute;
+  z-index: 1;
+}
+.viewControls {
+  top: 12px;
+  left: 12px;
+}
+.zoom {
+  bottom: 12px;
+  right: 12px;
+}
+.viewControls button,
+.viewControls select,
+.zoom button {
+  border: 1px solid #b8c6bc;
+  border-radius: 6px;
+  background: #fafcf8eb;
+  font-size: 0.85rem;
+  padding: 6px 9px;
+  font-weight: 600;
+}
+.zoom button {
+  min-width: 36px;
+}
+.metrics {
+  display: flex;
+  border-top: 1px solid var(--line);
+  padding: 13px 18px;
+  gap: 35px;
+}
+.metrics div {
+  display: grid;
+  gap: 3px;
+}
+.metrics strong {
+  font:
+    600 0.95rem/1.4 ui-monospace,
+    monospace;
+}
+.history button,
+#remove {
+  font-size: 1.1rem;
+  padding: 1px 8px;
+}
+.palette {
+  display: flex;
+  gap: 5px;
+  padding: 14px 13px;
+}
+.palette button {
+  flex: 1;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 7px 2px;
+  background: #f0f4ee;
+}
+.treeTitle {
+  padding: 6px 16px;
+}
+h3 {
+  font-size: 0.88rem;
+}
+.treeTitle span {
+  font-family: monospace;
+}
+#tree {
+  max-height: 172px;
+  overflow: auto;
+  margin: 0 9px 11px;
+  scrollbar-width: thin;
+}
+.shape {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  padding: 6px 10px;
+}
+.shape span:first-child {
+  font: 700 1rem monospace;
+  color: #47785d;
+}
+.shape span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shape small {
+  margin-left: auto;
+  white-space: nowrap;
+  font: 500 0.75rem monospace;
+}
+.shape[aria-pressed="true"] {
+  background: #e1efdf;
+  border-color: #b7d4b6;
+}
+#inspector {
+  border-top: 1px solid var(--line);
+  padding: 11px 15px 15px;
+}
+#inspector .treeTitle {
+  padding: 0 0 7px;
+}
+#remove {
+  font-size: 0.78rem;
+  border: 0;
+  color: #984d3c;
+}
+.nameLabel,
+#fields label,
+dialog label {
+  display: grid;
+  gap: 2px;
+  font-size: 0.8rem;
+  color: #4d6255;
+}
+input,
+dialog select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #c4cfc5;
+  background: #fbfcfa;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+#fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 8px 0 12px;
+}
+.apply {
+  background: var(--forest);
+  color: white;
+  border-color: var(--forest);
+  width: 100%;
+  font-size: 0.9rem;
+}
+.metrics small {
+  font-weight: 600;
+}
+footer {
+  padding: 13px 2px 20px;
+}
+footer button {
+  font-size: 0.82rem;
+}
+#empty {
+  position: absolute;
+  inset: 45% 10px auto;
+  text-align: center;
+  pointer-events: none;
+}
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  width: min(420px, 92vw);
+  padding: 19px;
+  color: inherit;
+}
+dialog::backdrop {
+  background: #142b24aa;
+}
+.dialogHead button {
+  border: 0;
+  padding: 0 8px;
+  font-size: 1.3rem;
+}
+#dialogBody {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+#dialogBody p {
+  margin: 0;
+  font-size: 0.91rem;
+}
+#notice {
+  position: fixed;
+  z-index: 4;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 90vw;
+  width: max-content;
+  border-radius: 8px;
+  background: #20372b;
+  color: white;
+  padding: 9px 16px;
+  font-size: 0.9rem;
+}
+dialog output {
+  font-size: 0.86rem;
+  color: #964522;
+}
+@media (max-width: 760px) {
+  header {
+    min-height: 56px;
+    padding: 0 12px;
+  }
+  .brand {
+    gap: 4px;
+    font-size: 1.05rem;
+  }
+  .brandmark {
+    font-size: 1.8rem;
+  }
+  .headActions button {
+    font-size: 0.8rem;
+    padding: 8px;
+  }
+  .heading {
+    padding: 13px 0 10px;
+  }
+  #status {
+    font-size: 0.74rem;
+  }
+  .workspace {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  #viewport {
+    height: clamp(260px, 42svh, 440px);
+  }
+  .stageHead,
+  .panelTitle {
+    height: 42px;
+  }
+  .metrics {
+    padding: 8px 13px;
+    gap: 22px;
+  }
+  .metrics strong {
+    font-size: 0.85rem;
+  }
+  .eyebrow {
+    font-size: 0.68rem;
+  }
+  .palette button,
+  .apply {
+    min-height: 42px;
+  }
+  .shape {
+    min-height: 39px;
+  }
+  #tree {
+    max-height: 142px;
+  }
+  #fields input {
+    min-height: 42px;
+  }
+  .zoom button,
+  .viewControls button,
+  .viewControls select {
+    min-height: 36px;
+  }
+}
