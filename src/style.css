@@ -84,33 +84,11 @@ header {
 }
 .headActions,
 .history,
-.moveControls,
 .viewControls,
 .zoom {
   display: flex;
   gap: 6px;
 }
-.moveControls {
-  top: 12px;
-  right: 12px;
-  display: flex;
-  gap: 4px;
-}
-.moveControls button {
-  min-width: 38px;
-  min-height: 38px;
-  padding: 4px;
-  border: 1px solid #b8c6bc;
-  border-radius: 6px;
-  background: #fafcf8eb;
-  font-weight: 650;
-}
-#moveShape[data-moving="true"] {
-  color: white;
-  background: #286855;
-}
-#viewport[data-moving="true"] > canvas:first-child { cursor: grab; }
-#viewport[data-moving="true"] > canvas:first-child:active { cursor: grabbing; }
 #textWeight { width: 100%; }
 .headActions button {
   background: #293e34;
@@ -227,11 +205,33 @@ canvas {
   height: 100%;
   touch-action: none;
 }
+.moveControls,
 .viewControls,
 .zoom {
   position: absolute;
   z-index: 1;
 }
+.moveControls {
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+}
+.moveControls button {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 4px;
+  border: 1px solid #b8c6bc;
+  border-radius: 6px;
+  background: #fafcf8eb;
+  font-weight: 650;
+}
+#moveShape[data-moving="true"] {
+  color: white;
+  background: #286855;
+}
+#viewport[data-moving="true"] > canvas:first-child { cursor: grab; }
+#viewport[data-moving="true"] > canvas:first-child:active { cursor: grabbing; }
 .viewControls {
   top: 12px;
   left: 12px;
