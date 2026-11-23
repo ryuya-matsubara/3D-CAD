@@ -102,17 +102,17 @@ export function createView(host, onPick) {
     const {x,y}=f, z=f.type==="hole" ? holeTop : f.z+f.height;
     if(f.type==="box") {
       const l=x-f.width/2,r=x+f.width/2,b=y-f.depth/2,t=y+f.depth/2;
-      dimension([l,b+f.radius,z],[r,b+f.radius,z],f.width+" mm",24);
-      dimension([r-f.radius,b,z],[r-f.radius,t,z],f.depth+" mm",20);
-      dimension([r,y,f.z],[r,y,z],f.height+" mm",20);
+      dimension([l,b+f.radius,z],[r,b+f.radius,z],f.width,24);
+      dimension([r-f.radius,b,z],[r-f.radius,t,z],f.depth,20);
+      dimension([r,y,f.z],[r,y,z],f.height,20);
       if(f.radius) {
         const cx=l+f.radius,cy=t-f.radius,d=f.radius/Math.sqrt(2);
-        dimension([cx,cy,z],[cx-d,cy+d,z],"R"+f.radius+" mm",-10);
+        dimension([cx,cy,z],[cx-d,cy+d,z],f.radius,-10);
       }
     } else {
       const r=f.diameter/2;
-      dimension([x-r,y,z],[x+r,y,z],"Ø"+f.diameter+" mm",-10);
-      if(f.type==="cylinder") dimension([x+r,y,f.z],[x+r,y,z],f.height+" mm",18);
+      dimension([x-r,y,z],[x+r,y,z],f.diameter,-10);
+      if(f.type==="cylinder") dimension([x+r,y,f.z],[x+r,y,z],f.height,18);
     }
   }
   let holeTop=0;

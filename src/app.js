@@ -1,3 +1,4 @@
+import { saveEntry, listEntries } from "./library.js";
 import init from "manifold-3d";
 import wasm from "manifold-3d/manifold.wasm?url";
 import { labels, dimensions, feature, sample, validate } from "./model.js";
@@ -50,10 +51,20 @@ function status(text) {
 function synced() {
   status(room ? "共有中 · v" + revision : "この端末に保存");
 }
+let libraryId = crypto.randomUUID();
+function writeDraft(value, id = libraryId) {
+  localStorage.setItem(draftKey, JSON.stringify({ libraryId: id, model: value }));
+}
 function localModel() {
   try {
     const saved = localStorage.getItem(draftKey);
-    if (saved) return validate(JSON.parse(saved));
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (!data.libraryId) return validate(data);
+      const restored = validate(data.model);
+      libraryId = data.libraryId;
+      return restored;
+    }
   } catch {
     note("端末の下書きを読み込めませんでした。");
   }
@@ -67,7 +78,7 @@ function controls() {
     b.disabled = blocked;
   $("undo").disabled = blocked || !undo.length;
   $("redo").disabled = blocked || !redo.length;
-  $("export").disabled = blocked || !mesh;
+  $("export").disabled = blocked;
 }
 function renderEditor() {
   $("rename").textContent = model.title;
@@ -147,7 +158,7 @@ function show(next, data, refit = false) {
   $("size").textContent = mesh
     ? mesh.bounds.max
         .map((v, i) => format(v - mesh.bounds.min[i]))
-        .join(" × ") + " mm"
+        .join(" × ")
     : "—";
   renderEditor();
 }
@@ -181,7 +192,7 @@ async function commit(next, kind = "edit", nextSelection = selected) {
         return false;
       }
       revision = result.revision;
-    } else localStorage.setItem(draftKey, JSON.stringify(next));
+    } else writeDraft(next);
     if (kind === "undo") {
       undo.pop();
       remember(redo, model);
@@ -291,6 +302,7 @@ function shareDialog() {
       const target = newRoom(input.value.trim());
       const saved = await requestRoom(target, 0, model);
       if (saved.conflict) throw Error("新しいリンクを発行し直してください。");
+      libraryId = crypto.randomUUID();
       room = target;
       revision = saved.revision;
       history.replaceState(null, "", roomURL(room));
@@ -378,7 +390,7 @@ $("zoomIn").onclick = () => viewer?.zoom(1.25);
 $("zoomOut").onclick = () => viewer?.zoom(0.8);
 $("export").onclick = () => {
   const save = (ext) => {
-    const bytes = ext === "stl" ? binarySTL(mesh) : threeMF(mesh);
+    const bytes = ext === "3dcad.json" ? JSON.stringify(model) : ext === "stl" ? binarySTL(mesh) : threeMF(mesh);
     const url = URL.createObjectURL(
       new Blob([bytes], { type: "application/octet-stream" }),
     );
@@ -392,27 +404,55 @@ $("export").onclick = () => {
     $("modal").close();
   };
   dialog(
-    "印刷用に書き出す",
+    "書き出し",
     el(
       "p",
       "寸法単位はmmです。書き出したファイルをスライサーで開いてください。",
     ),
-    button("3MF を保存", () => save("3mf")),
-    button("STL を保存", () => save("stl")),
+    button("編集用モデルを書き出す", () => save("3dcad.json")),
+    ...(mesh ? [button("3MF を保存", () => save("3mf")),
+    button("STL を保存", () => save("stl"))] : []),
   );
 };
-$("saveModel").onclick = () => {
+$("saveModel").onclick = async () => {
   if (dirty) return note("先に変更を適用してください。");
-  const url = URL.createObjectURL(new Blob([JSON.stringify(model)], {type:"application/json"}));
-  const link = el("a");
-  link.href = url;
-  link.download = model.title + ".3dcad.json";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  if (busy) return;
+  busy = true;
+  controls();
+  try {
+    if (!room) writeDraft(model);
+    await saveEntry({ id: libraryId, updated: Date.now(), model });
+    note("「" + model.title + "」を保存モデル一覧に保存しました。");
+  } catch { note("モデルを保存できませんでした。端末の空き容量やサイトデータ設定を確認してください。"); }
+  finally { busy = false; controls(); }
 };
-$("openModel").onclick = () => $("modelFile").click();
+function openLocal(next, id) {
+  try {
+    validate(next);
+    buildSolid(kernel, next);
+    writeDraft(next, id);
+    history.replaceState(null, "", location.pathname + location.search);
+    location.reload();
+  } catch (error) { note(error.message); }
+}
+function confirmOpen(next, id) {
+  dialog("モデルを開く", el("p", "「" + next.title + "」を開きます。現在の下書きは置き換わります。"),
+    button("開く", () => openLocal(next, id)));
+}
+$("openModel").onclick = async () => {
+  const list = el("div");
+  list.className = "library-list";
+  dialog("保存モデル一覧", list, button("モデルファイルを読み込む", () => $("modelFile").click()));
+  try {
+    const entries = await listEntries();
+    for (const entry of entries.sort((a,b) => b.updated - a.updated)) {
+      const row = button("", () => confirmOpen(entry.model, entry.id));
+      row.append(el("strong", entry.model.title), el("small", new Date(entry.updated).toLocaleString("ja-JP")));
+      list.append(row);
+    }
+    if (!entries.length) list.textContent = "保存したモデルはまだありません。";
+  } catch { list.textContent = "保存モデル一覧を読み込めませんでした。"; }
+};
 $("modelFile").onchange = async () => {
   const file = $("modelFile").files[0];
   $("modelFile").value = "";
@@ -420,9 +460,7 @@ $("modelFile").onchange = async () => {
   try {
     if (file.size > 65536) throw Error("モデルファイルが大きすぎます。");
     const next = validate(JSON.parse(await file.text()));
-    dialog("モデルを開く", el("p", "現在のモデルを「" + next.title + "」に置き換えます。"), button("開く", async () => {
-      if (await commit(next)) { viewer?.fit(); $("modal").close(); }
-    }));
+    confirmOpen(next, crypto.randomUUID());
   } catch (error) { note(error.message); }
 };
 $("newModel").onclick = () => {
@@ -441,7 +479,7 @@ $("newModel").onclick = () => {
       const next = { version: 1, title: input.value.trim(), features: [] };
       try {
         validate(next);
-        localStorage.setItem(draftKey, JSON.stringify(next));
+        writeDraft(next, crypto.randomUUID());
         history.replaceState(null, "", location.pathname + location.search);
         location.reload();
       } catch (e) {

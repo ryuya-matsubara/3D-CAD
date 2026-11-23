@@ -481,3 +481,6 @@ footer span {margin-right:auto}
 
 .metrics div {display:flex;align-items:baseline;gap:12px}
 #dimension-lines {position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+
+.library-list {display:grid;gap:6px;max-height:50svh;overflow:auto}
+.library-list button {display:grid;text-align:left;overflow-wrap:anywhere}
