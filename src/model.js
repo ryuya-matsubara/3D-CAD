@@ -1,5 +1,6 @@
-export const types = { box: "プレート", cylinder: "円柱", hole: "貫通穴" };
+export const types = { box: "プレート", cylinder: "円柱", hole: "円柱", text: "テキスト", gear: "歯車" };
 export const labels = {
+  size: "文字高さ", module: "モジュール", teeth: "歯数", bore: "軸穴径",
   width: "幅",
   depth: "奥行き",
   height: "高さ",
@@ -12,11 +13,15 @@ export const labels = {
 export const dimensions = {
   box: ["width", "depth", "height", "radius", "x", "y", "z"],
   cylinder: ["diameter", "height", "x", "y", "z"],
+  text: ["size","height","x","y","z"],
+  gear: ["teeth","module","bore","height","x","y","z"],
   hole: ["diameter", "x", "y"],
 };
 
 export function feature(type, name = types[type]) {
   const base = { id: crypto.randomUUID(), type, name, x: 0, y: 0 };
+  if(type === "text") return {...base, text:"CAD",size:12,height:3,z:0};
+  if(type === "gear") return {...base, teeth:20,module:1.5,bore:5,height:6,z:0};
   if (type === "box")
     return { ...base, z: 0, width: 60, depth: 40, height: 5, radius: 3 };
   if (type === "cylinder") return { ...base, z: 0, diameter: 24, height: 14 };
@@ -77,13 +82,16 @@ export function validate(model) {
       f.name.length > 64
     )
       throw Error("形状の名前または識別子が無効です。");
+    if (f.mode !== undefined && !["add","cut"].includes(f.mode)) throw Error("合成方法が無効です。");
+    if (f.type === "text" && (typeof f.text !== "string" || !f.text.trim() || [...f.text].length > 32)) throw Error("文字列は1〜32文字で指定してください。");
+    if (f.type === "gear" && (!Number.isInteger(f.teeth) || f.teeth<8 || f.teeth>120 || f.bore<0 || f.bore>=f.module*(f.teeth-2.5))) throw Error("歯数は8〜120、軸穴径は歯底径未満で指定してください。");
     ids.add(f.id);
     for (const key of dimensions[f.type]) {
       const n = f[key];
       if (
         !Number.isFinite(n) ||
         Math.abs(n) > 5000 ||
-        (!["x", "y", "z", "radius"].includes(key) && n < 0.01)
+        (!["x", "y", "z", "radius", "bore"].includes(key) && n < 0.01)
       )
         throw Error(
           labels[key] + "の値を確認してください（寸法は0.01〜5000 mm）。",

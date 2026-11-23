@@ -65,7 +65,7 @@
           <div class="palette">
             <button data-add="box">＋ プレート</button
             ><button data-add="cylinder">＋ 円柱</button
-            ><button data-add="hole">＋ 貫通穴</button>
+            ><button data-add="text">＋ テキスト</button><button data-add="gear">＋ 歯車</button>
           </div>
           <div class="treeTitle">
             <h3>形状ツリー</h3>
@@ -80,13 +80,17 @@
             <label class="nameLabel"
               >形状名<input id="featureName" maxlength="64" required
             /></label>
+            <label class="nameLabel">合成方法<select id="mode"><option value="add">追加</option><option value="cut">くり抜き</option></select></label>
+            <label id="throughRow"><input type="checkbox" id="through">全体を貫通</label>
+            <label><input type="checkbox" id="transparent">半透明で表示</label>
+            <label id="textRow" class="nameLabel">文字列<input id="textValue" maxlength="64"></label>
             <div id="fields"></div>
             <button type="submit" class="apply">変更を適用</button>
           </form>
         </aside>
       </div>
       <footer>
-        <span>3D CAD</span><button id="saveModel">モデルを保存</button><button id="openModel">保存モデル一覧</button><input id="modelFile" type="file" accept=".json" hidden><button id="newModel">新規モデル</button>
+        <button id="saveModel">モデルを保存</button><button id="openModel">保存モデル一覧</button><input id="modelFile" type="file" accept=".json" hidden><button id="newModel">新規モデル</button>
       </footer>
       <div id="notice" role="status" hidden></div>
     </main>

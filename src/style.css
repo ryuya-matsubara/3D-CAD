@@ -485,3 +485,9 @@ footer span {margin-right:auto}
 
 .library-list {display:grid;gap:6px;max-height:50svh;overflow:auto}
 .library-list button {display:grid;text-align:left;overflow-wrap:anywhere}
+
+footer {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+footer button {padding:8px 1px;white-space:nowrap;font-size:clamp(.7rem,3vw,.88rem)}
+#inspector input[type=checkbox]{width:auto;min-height:0}
+#inspector select{padding:6px}
+.palette {display:grid;grid-template-columns:repeat(2,1fr)}

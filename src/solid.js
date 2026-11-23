@@ -1,3 +1,4 @@
+import { gearProfile, textProfile } from "./templates.js";
 import { validate } from "./model.js";
 
 // Positions are in mm. Z is up and each feature is applied in tree order.
@@ -5,6 +6,7 @@ export function buildSolid(kernel, model) {
   validate(model);
   const { Manifold, CrossSection } = kernel;
   const owners = new Map();
+  const partBounds = new Map();
   let solid;
   try {
     for (const f of model.features) {
@@ -16,6 +18,14 @@ export function buildSolid(kernel, model) {
       try {
         let piece,
           bottom = f.z;
+        const cut = f.type === "hole" || f.mode === "cut";
+        if (cut && (!solid || solid.isEmpty())) continue;
+        let height = f.height;
+        if (f.type === "hole" || (cut && f.through)) {
+          const bounds = solid.boundingBox();
+          bottom = bounds.min[2] - 1;
+          height = bounds.max[2] - bottom + 1;
+        }
         if (f.type === "box") {
           const inner = keep(
             CrossSection.square(
@@ -26,15 +36,12 @@ export function buildSolid(kernel, model) {
           const outline = f.radius
             ? keep(inner.offset(f.radius, "Round", 2, 96))
             : inner;
-          piece = keep(outline.extrude(f.height));
+          piece = keep(outline.extrude(height));
+        } else if (f.type === "text" || f.type === "gear") {
+          const rings = f.type === "gear" ? gearProfile(f) : textProfile(f);
+          const outline = keep(new CrossSection(rings, "EvenOdd"));
+          piece = keep(outline.extrude(height));
         } else {
-          let height = f.height;
-          if (f.type === "hole") {
-            if (!solid || solid.isEmpty()) continue;
-            const bounds = solid.boundingBox();
-            bottom = bounds.min[2] - 1;
-            height = bounds.max[2] - bottom + 1;
-          }
           piece = keep(
             Manifold.cylinder(height, f.diameter / 2, f.diameter / 2, 96),
           );
@@ -42,8 +49,9 @@ export function buildSolid(kernel, model) {
         const translated = keep(piece.translate([f.x, f.y, bottom]));
         const placed = keep(translated.asOriginal());
         owners.set(placed.originalID(), f.id);
+        partBounds.set(f.id, placed.boundingBox());
         const next = solid
-          ? f.type === "hole"
+          ? cut
             ? solid.subtract(placed)
             : solid.add(placed)
           : placed;
@@ -59,7 +67,8 @@ export function buildSolid(kernel, model) {
       throw Error("立体を計算できませんでした。寸法を確認してください。");
     const mesh = solid.getMesh();
     return {
-      runs: Array.from(mesh.runOriginalID, (id, i) => ({id: owners.get(id), start: mesh.runIndex[i], count: mesh.runIndex[i+1]-mesh.runIndex[i]})),
+      partBounds,
+      runs: Array.from(mesh.runOriginalID, (id, i) => ({id: owners.get(id), start: mesh.runIndex[i], count: mesh.runIndex[i+1]-mesh.runIndex[i], transparent: model.features.find(f=>f.id===owners.get(id))?.transparent === true})),
       vertices: mesh.vertProperties.slice(),
       triangles: mesh.triVerts.slice(),
       bounds: solid.boundingBox(),

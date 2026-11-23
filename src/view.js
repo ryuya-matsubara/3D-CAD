@@ -46,6 +46,10 @@ export function createView(host, onPick) {
   highlight.color.set(0x37aab0);
   const overlay = host.querySelector("#dimension-lines");
   const pen = overlay.getContext("2d");
+  const translucent = [material,highlight].map(base=>{
+    const copy=base.clone(); copy.transparent=true; copy.opacity=0.35; copy.depthWrite=false; return copy;
+  });
+  let partBounds;
   const ray = new THREE.Raycaster();
   const pointers = new Set();
   let tap;
@@ -99,7 +103,7 @@ export function createView(host, onPick) {
       pen.strokeStyle="white";pen.lineWidth=3;pen.strokeText(label,0,-4);
       pen.fillStyle="#153448";pen.fillText(label,0,-4);pen.restore();
     }
-    const {x,y}=f, z=f.type==="hole" ? holeTop : f.z+f.height;
+    const {x,y}=f, z=f.type==="hole" || (f.mode==="cut" && f.through) ? holeTop : f.z+f.height;
     if(f.type==="box") {
       const l=x-f.width/2,r=x+f.width/2,b=y-f.depth/2,t=y+f.depth/2;
       dimension([l,b+f.radius,z],[r,b+f.radius,z],f.width,24);
@@ -109,10 +113,18 @@ export function createView(host, onPick) {
         const cx=l+f.radius,cy=t-f.radius,d=f.radius/Math.sqrt(2);
         dimension([cx,cy,z],[cx-d,cy+d,z],f.radius,-10);
       }
+    } else if (f.type==="text") {
+      const box=partBounds?.get(f.id);
+      if (!box) return;
+      const [l,b]=box.min,[r,t]=box.max;
+      dimension([l,b,z],[r,b,z],Number((r-l).toFixed(2)),18);
+      dimension([r,b,z],[r,t,z],f.size,16);
+      if(!f.through) dimension([r,y,f.z],[r,y,z],f.height,18);
     } else {
-      const r=f.diameter/2;
-      dimension([x-r,y,z],[x+r,y,z],f.diameter,-10);
-      if(f.type==="cylinder") dimension([x+r,y,f.z],[x+r,y,z],f.height,18);
+      const diameter=f.type==="gear" ? f.module*(f.teeth+2) : f.diameter;
+      const r=diameter/2;
+      dimension([x-r,y,z],[x+r,y,z],diameter,-10);
+      if(f.type!=="hole" && !f.through) dimension([x+r,y,f.z],[x+r,y,z],f.height,18);
     }
   }
   let holeTop=0;
@@ -193,9 +205,10 @@ export function createView(host, onPick) {
         );
         geometry.setIndex(new THREE.BufferAttribute(data.triangles, 1));
         geometry.computeVertexNormals();
+        partBounds=data.partBounds;
         runs=data.runs;
         for(const run of runs) geometry.addGroup(run.start,run.count,0);
-        mesh = new THREE.Mesh(geometry, [material,highlight]);
+        mesh = new THREE.Mesh(geometry, [material,highlight,...translucent]);
         edges = new THREE.LineSegments(
           new THREE.EdgesGeometry(geometry, 25),
           ink,
@@ -220,8 +233,8 @@ export function createView(host, onPick) {
         let top=-Infinity;
         mesh.geometry.groups.forEach((group,i)=>{
           const active=!!feature && runs[i].id===feature.id;
-          group.materialIndex=active?1:0;
-          if(active && feature.type==="hole") {
+          group.materialIndex=(runs[i].transparent?2:0)+(active?1:0);
+          if(active && (feature.type==="hole" || feature.through)) {
             const geo=mesh.geometry;
             for(let n=group.start;n<group.start+group.count;n++)
               top=Math.max(top,geo.attributes.position.getZ(geo.index.getX(n)));

@@ -1,4 +1,6 @@
 import { saveEntry, listEntries } from "./library.js";
+import "@fontsource/noto-sans-jp/400.css";
+import { textFont } from "./templates.js";
 import init from "manifold-3d";
 import wasm from "manifold-3d/manifold.wasm?url";
 import { labels, dimensions, feature, sample, validate } from "./model.js";
@@ -73,7 +75,7 @@ function localModel() {
 function controls() {
   const blocked = !ready || busy;
   for (const b of document.querySelectorAll(
-    "[data-add],#rename,#remove,#inspector button,#inspector input,#share,#saveModel,#openModel,#tree button",
+    "[data-add],#rename,#remove,#inspector button,#inspector input,#inspector select,#share,#saveModel,#openModel,#tree button",
   ))
     b.disabled = blocked;
   $("undo").disabled = blocked || !undo.length;
@@ -94,14 +96,14 @@ function renderEditor() {
     });
     row.className = "shape";
     row.setAttribute("aria-pressed", String(selected === f.id));
-    const symbol = el("span", { box: "▱", cylinder: "◉", hole: "⊖" }[f.type]);
+    const symbol = el("span", { box: "▱", cylinder: "◉", hole: "⊖", text:"T", gear:"⚙" }[f.type]);
     symbol.setAttribute("aria-hidden", "true");
     row.append(
       symbol,
       el("span", f.name),
       el(
         "small",
-        f.type === "box" ? f.width + " × " + f.depth : "Ø " + f.diameter,
+        f.type === "text" ? f.text : f.type === "gear" ? f.teeth+"歯" : f.type === "box" ? f.width + " × " + f.depth : "Ø " + f.diameter,
       ),
     );
     tree.append(row);
@@ -113,8 +115,14 @@ function renderEditor() {
   $("fields").replaceChildren();
   if (f) {
     $("featureName").value = f.name;
+    $("mode").value = f.type === "hole" ? "cut" : f.mode || "add";
+    $("throughRow").hidden = $("mode").value !== "cut";
+    $("through").checked = f.type === "hole" || !!f.through;
+    $("transparent").checked = !!f.transparent;
+    $("textRow").hidden = f.type !== "text";
+    $("textValue").value = f.text || "";
     for (const key of dimensions[f.type]) {
-      const label = el("label", labels[key] + " (mm)"),
+      const label = el("label", labels[key] + (key === "teeth" ? "" : " (mm)")),
         input = el("input");
       input.type = "number";
       input.step = "any";
@@ -123,7 +131,7 @@ function renderEditor() {
       input.value = f[key];
       input.min = ["x", "y", "z"].includes(key)
         ? -5000
-        : key === "radius"
+        : ["radius","bore"].includes(key)
           ? 0
           : 0.01;
       input.max = 5000;
@@ -166,6 +174,10 @@ function remember(stack, value) {
   stack.push(value);
   if (stack.length > 30) stack.shift();
 }
+async function prepareFonts(next) {
+  const letters = next.features.filter(f=>f.type==="text").map(f=>f.text).join("");
+  if (letters) await document.fonts.load(textFont, letters);
+}
 function acceptRemote(remote, refit = false) {
   const geometry = buildSolid(kernel, remote.model);
   undo = [];
@@ -180,11 +192,13 @@ async function commit(next, kind = "edit", nextSelection = selected) {
   busy = true;
   controls();
   try {
+    await prepareFonts(next);
     const geometry = buildSolid(kernel, next);
     if (room) {
       status("保存中…");
       const result = await requestRoom(room, revision, next);
       if (result.conflict) {
+        await prepareFonts(result.model);
         acceptRemote(result);
         note(
           "他の編集を受信しました。最新の寸法を確認して、変更をもう一度入力してください。",
@@ -238,6 +252,7 @@ async function poll() {
   const start = revision;
   try {
     const result = await requestRoom(room, revision);
+    if (result) await prepareFonts(result.model);
     if (start !== revision || busy || dirty || $("modal").open) return;
     if (result) acceptRemote(result, !ready);
     else synced();
@@ -345,6 +360,7 @@ $("rename").onclick = () => {
     }),
   );
 };
+$("mode").onchange = () => { $("throughRow").hidden = $("mode").value !== "cut"; };
 $("inspector").oninput = () => {
   dirty = true;
 };
@@ -352,8 +368,14 @@ $("inspector").onsubmit = async (event) => {
   event.preventDefault();
   const next = structuredClone(model),
     f = next.features.find((s) => s.id === selected);
+  const originalType = f.type;
+  if(f.type === "hole") Object.assign(f, {type:"cylinder",height:mesh ? mesh.bounds.max[2]-mesh.bounds.min[2] : 10,z:mesh?.bounds.min[2] ?? 0});
+  f.mode = $("mode").value;
+  f.transparent = $("transparent").checked;
+  f.through = f.mode === "cut" && $("through").checked;
+  if(f.type === "text") f.text = $("textValue").value;
   f.name = $("featureName").value.trim();
-  for (const key of dimensions[f.type])
+  for (const key of dimensions[originalType])
     f[key] = event.currentTarget.elements.namedItem(key).valueAsNumber;
   await commit(next);
 };
@@ -361,6 +383,7 @@ document.querySelectorAll("[data-add]").forEach(
   (b) =>
     (b.onclick = () => {
       const f = feature(b.dataset.add);
+      if (f.type === "text" && mesh) f.z = mesh.bounds.max[2];
       commit({ ...model, features: [...model.features, f] }, "edit", f.id);
     }),
 );
@@ -426,9 +449,10 @@ $("saveModel").onclick = async () => {
   } catch { note("モデルを保存できませんでした。端末の空き容量やサイトデータ設定を確認してください。"); }
   finally { busy = false; controls(); }
 };
-function openLocal(next, id) {
+async function openLocal(next, id) {
   try {
     validate(next);
+    await prepareFonts(next);
     buildSolid(kernel, next);
     writeDraft(next, id);
     history.replaceState(null, "", location.pathname + location.search);
@@ -518,6 +542,7 @@ try {
   } else {
     model = localModel();
     ready = true;
+    await prepareFonts(model);
     show(model, buildSolid(kernel, model), true);
     synced();
   }
