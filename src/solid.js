@@ -1,7 +1,7 @@
 import { gearProfile, textProfile } from "./templates.js";
 import { validate } from "./model.js";
 
-// Positions are in mm. Z is up and each feature is applied in tree order.
+// Historical cuts follow tree order. New cutouts subtract from the complete model.
 export function buildSolid(kernel, model) {
   validate(model);
   const { Manifold, CrossSection } = kernel;
@@ -9,7 +9,9 @@ export function buildSolid(kernel, model) {
   const partBounds = new Map();
   let solid;
   try {
-    for (const f of model.features) {
+    const isGlobalCut = f => f.mode === "cut" && f.globalCut === true;
+    const ordered = model.features.filter(f => !isGlobalCut(f)).concat(model.features.filter(isGlobalCut));
+    for (const f of ordered) {
       const owned = [];
       const keep = (obj) => {
         owned.push(obj);
@@ -68,7 +70,7 @@ export function buildSolid(kernel, model) {
     const mesh = solid.getMesh();
     return {
       partBounds,
-      runs: Array.from(mesh.runOriginalID, (id, i) => ({id: owners.get(id), start: mesh.runIndex[i], count: mesh.runIndex[i+1]-mesh.runIndex[i], transparent: model.features.find(f=>f.id===owners.get(id))?.transparent === true})),
+      runs: Array.from(mesh.runOriginalID, (id, i) => ({id: owners.get(id), start: mesh.runIndex[i], count: mesh.runIndex[i+1]-mesh.runIndex[i]})),
       vertices: mesh.vertProperties.slice(),
       triangles: mesh.triVerts.slice(),
       bounds: solid.boundingBox(),

@@ -100,7 +100,7 @@ function renderEditor() {
     symbol.setAttribute("aria-hidden", "true");
     row.append(
       symbol,
-      el("span", f.name),
+      el("span", f.name + (f.type === "hole" || f.mode === "cut" ? "（透過）" : "")),
       el(
         "small",
         f.type === "text" ? f.text : f.type === "gear" ? f.teeth+"歯" : f.type === "box" ? f.width + " × " + f.depth : "Ø " + f.diameter,
@@ -115,10 +115,7 @@ function renderEditor() {
   $("fields").replaceChildren();
   if (f) {
     $("featureName").value = f.name;
-    $("mode").value = f.type === "hole" ? "cut" : f.mode || "add";
-    $("throughRow").hidden = $("mode").value !== "cut";
-    $("through").checked = f.type === "hole" || !!f.through;
-    $("transparent").checked = !!f.transparent;
+    $("cutout").checked = f.type === "hole" || f.mode === "cut";
     $("textRow").hidden = f.type !== "text";
     $("textValue").value = f.text || "";
     for (const key of dimensions[f.type]) {
@@ -360,7 +357,7 @@ $("rename").onclick = () => {
     }),
   );
 };
-$("mode").onchange = () => { $("throughRow").hidden = $("mode").value !== "cut"; };
+$("cutout").onchange = () => $("inspector").requestSubmit();
 $("inspector").oninput = () => {
   dirty = true;
 };
@@ -370,9 +367,13 @@ $("inspector").onsubmit = async (event) => {
     f = next.features.find((s) => s.id === selected);
   const originalType = f.type;
   if(f.type === "hole") Object.assign(f, {type:"cylinder",height:mesh ? mesh.bounds.max[2]-mesh.bounds.min[2] : 10,z:mesh?.bounds.min[2] ?? 0});
-  f.mode = $("mode").value;
-  f.transparent = $("transparent").checked;
-  f.through = f.mode === "cut" && $("through").checked;
+  const cutout = $("cutout").checked;
+  // Preserve historical through cuts when only another parameter is edited.
+  const existingCut = originalType === "hole" || f.mode === "cut";
+  f.through = cutout && existingCut && (originalType === "hole" || !!f.through);
+  f.globalCut = cutout && (!existingCut || !!f.globalCut);
+  f.mode = cutout ? "cut" : "add";
+  delete f.transparent;
   if(f.type === "text") f.text = $("textValue").value;
   f.name = $("featureName").value.trim();
   for (const key of dimensions[originalType])

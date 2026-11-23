@@ -46,9 +46,6 @@ export function createView(host, onPick) {
   highlight.color.set(0x37aab0);
   const overlay = host.querySelector("#dimension-lines");
   const pen = overlay.getContext("2d");
-  const translucent = [material,highlight].map(base=>{
-    const copy=base.clone(); copy.transparent=true; copy.opacity=0.35; copy.depthWrite=false; return copy;
-  });
   let partBounds;
   const ray = new THREE.Raycaster();
   const pointers = new Set();
@@ -208,7 +205,7 @@ export function createView(host, onPick) {
         partBounds=data.partBounds;
         runs=data.runs;
         for(const run of runs) geometry.addGroup(run.start,run.count,0);
-        mesh = new THREE.Mesh(geometry, [material,highlight,...translucent]);
+        mesh = new THREE.Mesh(geometry, [material,highlight]);
         edges = new THREE.LineSegments(
           new THREE.EdgesGeometry(geometry, 25),
           ink,
@@ -233,7 +230,7 @@ export function createView(host, onPick) {
         let top=-Infinity;
         mesh.geometry.groups.forEach((group,i)=>{
           const active=!!feature && runs[i].id===feature.id;
-          group.materialIndex=(runs[i].transparent?2:0)+(active?1:0);
+          group.materialIndex=active ? 1 : 0;
           if(active && (feature.type==="hole" || feature.through)) {
             const geo=mesh.geometry;
             for(let n=group.start;n<group.start+group.count;n++)
