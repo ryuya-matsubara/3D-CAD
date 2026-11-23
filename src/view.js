@@ -57,6 +57,14 @@ export function createView(host, onPick, onMove) {
       2*(e.clientX-r.left)/r.width-1, 1-2*(e.clientY-r.top)/r.height,
     ), camera);
   }
+  function pick(e) {
+    if (!mesh) return;
+    setRay(e);
+    const hit = ray.intersectObject(mesh, false)[0];
+    if (!hit) return;
+    const index = hit.faceIndex * 3;
+    return runs.find(run => index >= run.start && index < run.start + run.count)?.id;
+  }
   function dragPoint(e, current) {
     if (current.plane) {
       setRay(e);
@@ -64,29 +72,46 @@ export function createView(host, onPick, onMove) {
     }
     const dx = (e.clientX - current.x) * current.unitsPerPixel;
     const dy = (current.y - e.clientY) * current.unitsPerPixel;
-    if (moveAxis === "z") return new THREE.Vector3(0, 0, dy / current.verticalScale);
+    if (current.worldAxis) {
+      const { x, y } = current.screenAxis;
+      return current.worldAxis.clone().multiplyScalar(dx*x + dy*y);
+    }
     return new THREE.Vector3(dx, dy, 0).applyAxisAngle(
       new THREE.Vector3(0, 0, 1), current.horizontalAngle,
     );
   }
   surface.addEventListener("pointerdown", e => {
-    if (moveAxis) {
-      if (drag || e.button !== 0 || !selection) return;
-      const direction = camera.getWorldDirection(new THREE.Vector3());
-      const plane = moveAxis === "xy" && Math.abs(direction.z) > 0.15
-        ? new THREE.Plane(new THREE.Vector3(0,0,1), -(selection.z ?? 0))
-        : null;
-      drag = {
-        id: e.pointerId, x: e.clientX, y: e.clientY, plane,
-        position: new THREE.Vector3(selection.x, selection.y, selection.z ?? 0),
-        unitsPerPixel: (camera.top-camera.bottom) / (camera.zoom*surface.clientHeight),
-        verticalScale: Math.max(0.25, Math.hypot(direction.x, direction.y)),
-        horizontalAngle: Math.atan2(direction.y, direction.x) - Math.PI / 2,
-      };
-      drag.start = dragPoint(e, drag);
-      surface.setPointerCapture(e.pointerId);
+    if (drag) {
+      e.stopImmediatePropagation();
       return;
     }
+    if (!moveAxis || !selection || e.button !== 0 || pointers.size || pick(e) !== selection.id) return;
+    // Keep OrbitControls in charge of gestures that start away from the selected shape.
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const direction = camera.getWorldDirection(new THREE.Vector3());
+    const plane = moveAxis === "xy" && Math.abs(direction.z) > 0.15
+      ? new THREE.Plane(new THREE.Vector3(0,0,1), -(selection.z ?? 0))
+      : null;
+    drag = {
+      id: e.pointerId, x: e.clientX, y: e.clientY, plane,
+      position: new THREE.Vector3(selection.x, selection.y, selection.z ?? 0),
+      unitsPerPixel: (camera.top-camera.bottom) / (camera.zoom*surface.clientHeight),
+      horizontalAngle: Math.atan2(direction.y, direction.x) - Math.PI / 2,
+    };
+    if (moveAxis !== "xy") {
+      drag.worldAxis = new THREE.Vector3().setComponent("xyz".indexOf(moveAxis), 1);
+      const projected = drag.worldAxis.clone().applyQuaternion(camera.quaternion.clone().invert());
+      const screenAxis = new THREE.Vector2(projected.x, projected.y);
+      const length = screenAxis.length();
+      if (length < 0.001) screenAxis.set(moveAxis === "x" ? 1 : 0, moveAxis === "x" ? 0 : 1);
+      drag.screenAxis = screenAxis.normalize().divideScalar(Math.max(length, 0.25));
+    }
+    drag.start = dragPoint(e, drag);
+    tap = null;
+    surface.setPointerCapture(e.pointerId);
+  }, { capture: true });
+  surface.addEventListener("pointerdown", e => {
     pointers.add(e.pointerId);
     tap = pointers.size === 1 && e.button === 0 ? [e.clientX,e.clientY] : null;
   });
@@ -102,7 +127,10 @@ export function createView(host, onPick, onMove) {
     if (tap && Math.hypot(e.clientX-tap[0],e.clientY-tap[1]) > 5) tap = null;
   });
   function endPointer(e) {
-    if (drag?.id === e.pointerId) drag = undefined;
+    if (drag?.id === e.pointerId) {
+      drag = undefined;
+      if (surface.hasPointerCapture(e.pointerId)) surface.releasePointerCapture(e.pointerId);
+    }
     pointers.delete(e.pointerId);
     tap = null;
   }
@@ -113,10 +141,7 @@ export function createView(host, onPick, onMove) {
     pointers.delete(e.pointerId);
     if (!tap || !mesh) return;
     tap=null;
-    setRay(e);
-    const hit=ray.intersectObject(mesh,false)[0];
-    const index=hit?.faceIndex*3;
-    onPick(runs.find(run=>index>=run.start && index<run.start+run.count)?.id);
+    onPick(pick(e));
   });
   function drawDimensions() {
     const w=host.clientWidth,h=host.clientHeight,ratio=renderer.getPixelRatio();
@@ -273,7 +298,6 @@ export function createView(host, onPick, onMove) {
       drag = undefined;
       tap = null;
       moveAxis = axis;
-      controls.enabled = !axis;
       host.dataset.moving = String(!!axis);
     },
     zoom(factor) {

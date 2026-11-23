@@ -217,7 +217,8 @@ canvas {
   display: flex;
   gap: 4px;
 }
-.moveControls button {
+.moveControls button,
+.moveControls select {
   min-width: 38px;
   min-height: 38px;
   padding: 4px;
@@ -225,6 +226,11 @@ canvas {
   border-radius: 6px;
   background: #fafcf8eb;
   font-weight: 650;
+}
+.moveControls select {
+  width: auto;
+  color: inherit;
+  font-size: 0.875rem;
 }
 #moveShape[data-moving="true"] {
   color: white;

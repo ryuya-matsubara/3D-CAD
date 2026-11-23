@@ -46,8 +46,12 @@
               <button id="measure" aria-pressed="false">寸法</button><button id="pin" aria-pressed="false">ビューを固定</button>
             </div>
             <div class="moveControls" hidden>
-              <button id="movePlane" type="button" aria-label="上下方向に切り替え" hidden>XY</button>
-              <button id="moveCancel" type="button" aria-label="移動を取り消す" hidden>×</button>
+              <select id="moveAxis" aria-label="移動方向" hidden>
+                <option value="xy">XY</option>
+                <option value="x">X</option>
+                <option value="y">Y</option>
+                <option id="moveZ" value="z">Z</option>
+              </select>
               <button id="moveShape" type="button" aria-label="形状を移動" title="形状を移動">✋</button>
             </div>
             <canvas id="axis" width="160" height="160" aria-label="XYZ座標軸"></canvas><canvas id="dimension-lines" aria-label="選択形状の寸法線"></canvas><div class="zoom">

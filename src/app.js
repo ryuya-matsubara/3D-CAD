@@ -85,8 +85,7 @@ function controls() {
   $("redo").disabled = blocked || !!moveDraft || !redo.length;
   $("export").disabled = blocked || !!moveDraft;
   $("moveShape").disabled = blocked || dirty;
-  $("moveCancel").disabled = blocked;
-  $("movePlane").disabled = blocked;
+  $("moveAxis").disabled = blocked;
 }
 function moveControls() {
   const moving = !!moveDraft;
@@ -95,10 +94,10 @@ function moveControls() {
   $("moveShape").dataset.moving = String(moving);
   $("moveShape").title = moving ? "移動を確定" : "形状を移動";
   $("moveShape").setAttribute("aria-label", $("moveShape").title);
-  $("moveCancel").hidden = !moving;
-  $("movePlane").hidden = !moving || moveDraft.feature.type === "hole" || moveDraft.feature.through;
-  $("movePlane").textContent = moveDraft?.axis === "z" ? "Z" : "XY";
-  $("movePlane").setAttribute("aria-label", moveDraft?.axis === "z" ? "水平方向に切り替え" : "上下方向に切り替え");
+  $("moveAxis").hidden = !moving;
+  $("moveAxis").value = moveDraft?.axis ?? "xy";
+  $("moveZ").disabled = moving &&
+    (moveDraft.feature.type === "hole" || moveDraft.feature.mode === "cut" && moveDraft.feature.through);
 }
 function endMove() {
   if (!moveDraft) return;
@@ -119,7 +118,7 @@ function moveModel() {
 }
 function previewMove(position) {
   if (!moveDraft || busy) return;
-  const axes = moveDraft.axis === "z" ? ["z"] : ["x", "y"];
+  const axes = [...moveDraft.axis];
   const next = { ...moveDraft.feature };
   for (const key of axes) {
     const value = position[["x", "y", "z"].indexOf(key)];
@@ -149,23 +148,22 @@ $("moveShape").onclick = async () => {
   }
   const original = model.features.find(f => f.id === selected);
   if (["x", "y", "z"].every(key => moveDraft.feature[key] === original[key])) {
-    $("moveCancel").click();
+    resetMove();
     return;
   }
   await commit(moveModel());
 };
-$("movePlane").onclick = () => {
-  moveDraft.axis = moveDraft.axis === "xy" ? "z" : "xy";
+$("moveAxis").onchange = (event) => {
+  moveDraft.axis = event.target.value;
   viewer.move(moveDraft.axis);
-  moveControls();
 };
-$("moveCancel").onclick = () => {
+function resetMove() {
   endMove();
   showGeometry(mesh);
   renderEditor();
-};
+}
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && moveDraft && !busy) $("moveCancel").click();
+  if (e.key === "Escape" && moveDraft && !busy) resetMove();
 });
 function textLength(f) {
   if (f.length !== undefined) return f.length;
