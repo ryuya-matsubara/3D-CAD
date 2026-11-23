@@ -14,9 +14,14 @@ import { readRoom, newRoom, roomURL, requestRoom } from "./sync.js";
 const $ = (id) => document.getElementById(id);
 const draftKey = "katachi.draft.v1",
   serverKey = "katachi.server.v1";
+const pagesApi =
+  location.origin === "https://ryuya-matsubara.github.io" &&
+  location.pathname.startsWith("/3D-CAD/")
+    ? "https://katachi-cad-sync.r-matubara.workers.dev"
+    : "";
 const defaultApi =
   import.meta.env.VITE_SYNC_URL ||
-  (import.meta.env.DEV ? "http://localhost:8787" : "");
+  (import.meta.env.DEV ? "http://localhost:8787" : pagesApi);
 let model,
   mesh,
   kernel,
