@@ -36,24 +36,49 @@ export function gearProfile(f) {
   return rings;
 }
 
-export const textFont = '96px "Noto Sans JP"';
-export function textProfile(f) {
+export const textFont = (weight = 400) => `${weight} 96px "Noto Sans JP"`;
+const glyphs = new Map();
+
+function glyphOutline(text, weight) {
+  const key = JSON.stringify([text, weight]);
+  if (glyphs.has(key)) return glyphs.get(key);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d", {willReadFrequently:true});
-  ctx.font = textFont;
-  const metrics = ctx.measureText(f.text);
+  ctx.font = textFont(weight);
+  const metrics = ctx.measureText(text);
   const width = Math.ceil(metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight);
   const height = Math.ceil(metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent);
   if (!width || !height) throw Error("立体化できる文字を入力してください。");
   canvas.width = width + 4;
   canvas.height = height + 4;
-  ctx.font = textFont;
-  ctx.fillText(f.text, 2+metrics.actualBoundingBoxLeft, 2+metrics.actualBoundingBoxAscent);
+  ctx.font = textFont(weight);
+  ctx.fillText(text, 2+metrics.actualBoundingBoxLeft, 2+metrics.actualBoundingBoxAscent);
   const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
   const alpha = new Uint8Array(pixels.length/4);
   for(let i=0;i<alpha.length;i++) alpha[i]=pixels[4*i+3];
   const outline = contours().size([canvas.width,canvas.height]).contour(alpha,128);
-  const scale = f.size / height;
-  return outline.coordinates.flat().map(ring => ring.slice(0,-1).map(([x,y]) =>
-    [(x-canvas.width/2)*scale,(canvas.height/2-y)*scale]));
+  const rings = outline.coordinates.flat().map(ring => ring.slice(0,-1).map(([x,y]) =>
+    [x-canvas.width/2,canvas.height/2-y]));
+  if (!rings.length) throw Error("立体化できる文字を入力してください。");
+  const min = [Infinity, Infinity], max = [-Infinity, -Infinity];
+  for (const ring of rings) for (const point of ring) {
+    for (let axis = 0; axis < 2; axis++) {
+      min[axis] = Math.min(min[axis], point[axis]);
+      max[axis] = Math.max(max[axis], point[axis]);
+    }
+  }
+  const glyph = { rings, min, max, height };
+  if (glyphs.size >= 100) glyphs.delete(glyphs.keys().next().value);
+  glyphs.set(key, glyph);
+  return glyph;
+}
+
+export function textProfile(f) {
+  const glyph = glyphOutline(f.text, f.weight ?? 400);
+  const scale = f.length === undefined
+    ? f.size / glyph.height
+    : f.length / (glyph.max[0] - glyph.min[0]);
+  const min = glyph.min.map(n => n * scale);
+  const max = glyph.max.map(n => n * scale);
+  return { rings: glyph.rings.map(ring => ring.map(point => point.map(n => n * scale))), min, max };
 }

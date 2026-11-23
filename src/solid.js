@@ -6,7 +6,7 @@ export function buildSolid(kernel, model) {
   validate(model);
   const { Manifold, CrossSection } = kernel;
   const owners = new Map();
-  const partBounds = new Map();
+  const partBounds = new Map(), textBounds = new Map();
   let solid;
   try {
     const isGlobalCut = f => f.mode === "cut" && f.globalCut === true;
@@ -40,9 +40,12 @@ export function buildSolid(kernel, model) {
             : inner;
           piece = keep(outline.extrude(height));
         } else if (f.type === "text" || f.type === "gear") {
-          const rings = f.type === "gear" ? gearProfile(f) : textProfile(f);
+          const profile = f.type === "text" ? textProfile(f) : null;
+          if (profile) textBounds.set(f.id, { min: profile.min, max: profile.max });
+          const rings = profile ? profile.rings : gearProfile(f);
           const outline = keep(new CrossSection(rings, "EvenOdd"));
-          piece = keep(outline.extrude(height));
+          const extruded = keep(outline.extrude(height));
+          piece = f.rotation && profile ? keep(extruded.rotate([0, 0, f.rotation])) : extruded;
         } else {
           piece = keep(
             Manifold.cylinder(height, f.diameter / 2, f.diameter / 2, 96),
@@ -70,6 +73,7 @@ export function buildSolid(kernel, model) {
     const mesh = solid.getMesh();
     return {
       partBounds,
+      textBounds,
       runs: Array.from(mesh.runOriginalID, (id, i) => ({id: owners.get(id), start: mesh.runIndex[i], count: mesh.runIndex[i+1]-mesh.runIndex[i]})),
       vertices: mesh.vertProperties.slice(),
       triangles: mesh.triVerts.slice(),

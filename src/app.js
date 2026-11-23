@@ -1,6 +1,8 @@
 import { saveEntry, listEntries } from "./library.js";
 import "@fontsource/noto-sans-jp/400.css";
-import { textFont } from "./templates.js";
+import "@fontsource/noto-sans-jp/500.css";
+import "@fontsource/noto-sans-jp/700.css";
+import { textFont, textProfile } from "./templates.js";
 import init from "manifold-3d";
 import wasm from "manifold-3d/manifold.wasm?url";
 import { labels, dimensions, feature, sample, validate } from "./model.js";
@@ -29,6 +31,7 @@ let model,
 let undo = [],
   redo = [],
   noticeTimer;
+let moveDraft, moveFrame;
 const format = (n) => Number(n.toFixed(2)).toLocaleString("ja-JP");
 function note(text) {
   $("notice").textContent = text;
@@ -75,12 +78,99 @@ function localModel() {
 function controls() {
   const blocked = !ready || busy;
   for (const b of document.querySelectorAll(
-    "[data-add],#rename,#remove,#inspector button,#inspector input,#inspector select,#share,#saveModel,#openModel,#tree button",
+    "[data-add],#rename,#remove,#inspector button,#inspector input,#inspector select,#share,#saveModel,#openModel,#newModel,#tree button",
   ))
-    b.disabled = blocked;
-  $("undo").disabled = blocked || !undo.length;
-  $("redo").disabled = blocked || !redo.length;
-  $("export").disabled = blocked;
+    b.disabled = blocked || !!moveDraft;
+  $("undo").disabled = blocked || !!moveDraft || !undo.length;
+  $("redo").disabled = blocked || !!moveDraft || !redo.length;
+  $("export").disabled = blocked || !!moveDraft;
+  $("moveShape").disabled = blocked || dirty;
+  $("moveCancel").disabled = blocked;
+  $("movePlane").disabled = blocked;
+}
+function moveControls() {
+  const moving = !!moveDraft;
+  $("moveShape").parentElement.hidden = !viewer || !selected;
+  $("moveShape").textContent = moving ? "✓" : "✋";
+  $("moveShape").dataset.moving = String(moving);
+  $("moveShape").title = moving ? "移動を確定" : "形状を移動";
+  $("moveShape").setAttribute("aria-label", $("moveShape").title);
+  $("moveCancel").hidden = !moving;
+  $("movePlane").hidden = !moving || moveDraft.feature.type === "hole" || moveDraft.feature.through;
+  $("movePlane").textContent = moveDraft?.axis === "z" ? "Z" : "XY";
+  $("movePlane").setAttribute("aria-label", moveDraft?.axis === "z" ? "水平方向に切り替え" : "上下方向に切り替え");
+}
+function endMove() {
+  if (!moveDraft) return;
+  cancelAnimationFrame(moveFrame);
+  moveFrame = undefined;
+  moveDraft = undefined;
+  viewer.move();
+}
+function showGeometry(data, refit = false) {
+  viewer?.update(data, refit);
+  $("empty").hidden = !!data || !!moveDraft;
+  $("size").textContent = data
+    ? data.bounds.max.map((v, i) => format(v - data.bounds.min[i])).join(" × ")
+    : "—";
+}
+function moveModel() {
+  return { ...model, features: model.features.map(f => f.id === selected ? moveDraft.feature : f) };
+}
+function previewMove(position) {
+  if (!moveDraft || busy) return;
+  const axes = moveDraft.axis === "z" ? ["z"] : ["x", "y"];
+  const next = { ...moveDraft.feature };
+  for (const key of axes) {
+    const value = position[["x", "y", "z"].indexOf(key)];
+    next[key] = Math.max(-5000, Math.min(5000, value));
+  }
+  if (axes.every(key => next[key] === moveDraft.feature[key])) return;
+  moveDraft.feature = next;
+  for (const key of axes) $("inspector").elements.namedItem(key).value = next[key];
+  if (moveFrame !== undefined) return;
+  moveFrame = requestAnimationFrame(() => {
+    moveFrame = undefined;
+    try {
+      showGeometry(buildSolid(kernel, moveModel()));
+    } catch (error) {
+      note(error.message);
+    }
+    updateDimensions();
+  });
+}
+$("moveShape").onclick = async () => {
+  if (!moveDraft) {
+    moveDraft = { feature: { ...model.features.find(f => f.id === selected) }, axis: "xy" };
+    viewer.move("xy");
+    moveControls();
+    controls();
+    return;
+  }
+  const original = model.features.find(f => f.id === selected);
+  if (["x", "y", "z"].every(key => moveDraft.feature[key] === original[key])) {
+    $("moveCancel").click();
+    return;
+  }
+  await commit(moveModel());
+};
+$("movePlane").onclick = () => {
+  moveDraft.axis = moveDraft.axis === "xy" ? "z" : "xy";
+  viewer.move(moveDraft.axis);
+  moveControls();
+};
+$("moveCancel").onclick = () => {
+  endMove();
+  showGeometry(mesh);
+  renderEditor();
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && moveDraft && !busy) $("moveCancel").click();
+});
+function textLength(f) {
+  if (f.length !== undefined) return f.length;
+  const { min, max } = mesh?.textBounds.get(f.id) ?? textProfile(f);
+  return max[0] - min[0];
 }
 function renderEditor() {
   $("rename").textContent = model.title;
@@ -117,21 +207,33 @@ function renderEditor() {
     $("featureName").value = f.name;
     $("cutout").checked = f.type === "hole" || f.mode === "cut";
     $("textRow").hidden = f.type !== "text";
+    $("weightRow").hidden = f.type !== "text";
     $("textValue").value = f.text || "";
-    for (const key of dimensions[f.type]) {
-      const label = el("label", labels[key] + (key === "teeth" ? "" : " (mm)")),
+    $("textWeight").value = f.weight ?? 400;
+    const keys = f.type === "text" ? ["length", "rotation", ...dimensions.text.slice(1)] : dimensions[f.type];
+    for (const key of keys) {
+      const unit = key === "teeth" ? "" : key === "rotation" ? " (°)" : " (mm)";
+      const label = el("label", labels[key] + unit),
         input = el("input");
       input.type = "number";
       input.step = "any";
       input.required = true;
       input.name = key;
-      input.value = f[key];
+      input.value = key === "length" ? textLength(f) : f[key] ?? 0;
       input.min = ["x", "y", "z"].includes(key)
         ? -5000
         : ["radius","bore"].includes(key)
           ? 0
           : 0.01;
       input.max = 5000;
+      if (key === "rotation") {
+        input.min = -360;
+        input.max = 360;
+      }
+      if (key === "length" && f.length === undefined) {
+        input.min = Math.min(0.01, input.valueAsNumber);
+        input.max = Math.max(5000, input.valueAsNumber);
+      }
       label.append(input);
       const cell = el("div");
       cell.append(label);
@@ -152,19 +254,15 @@ function renderEditor() {
       $("fields").append(cell);
     }
   }
+  moveControls();
   controls();
 }
 function show(next, data, refit = false) {
+  endMove();
   model = next;
   mesh = data;
-  viewer?.update(mesh, refit);
-  $("empty").hidden = !!mesh;
+  showGeometry(mesh, refit);
   $("empty").textContent = "形状を追加してください";
-  $("size").textContent = mesh
-    ? mesh.bounds.max
-        .map((v, i) => format(v - mesh.bounds.min[i]))
-        .join(" × ")
-    : "—";
   renderEditor();
 }
 function remember(stack, value) {
@@ -172,8 +270,12 @@ function remember(stack, value) {
   if (stack.length > 30) stack.shift();
 }
 async function prepareFonts(next) {
-  const letters = next.features.filter(f=>f.type==="text").map(f=>f.text).join("");
-  if (letters) await document.fonts.load(textFont, letters);
+  const letters = new Map();
+  for (const f of next.features) if (f.type === "text") {
+    const weight = f.weight ?? 400;
+    letters.set(weight, (letters.get(weight) ?? "") + f.text);
+  }
+  await Promise.all(Array.from(letters, ([weight, text]) => document.fonts.load(textFont(weight), text)));
 }
 function acceptRemote(remote, refit = false) {
   const geometry = buildSolid(kernel, remote.model);
@@ -241,6 +343,7 @@ async function poll() {
     busy ||
     polling ||
     dirty ||
+    moveDraft ||
     document.hidden ||
     $("modal").open
   )
@@ -250,7 +353,7 @@ async function poll() {
   try {
     const result = await requestRoom(room, revision);
     if (result) await prepareFonts(result.model);
-    if (start !== revision || busy || dirty || $("modal").open) return;
+    if (start !== revision || busy || dirty || moveDraft || $("modal").open) return;
     if (result) acceptRemote(result, !ready);
     else synced();
   } catch (e) {
@@ -360,6 +463,7 @@ $("rename").onclick = () => {
 $("cutout").onchange = () => $("inspector").requestSubmit();
 $("inspector").oninput = () => {
   dirty = true;
+  $("moveShape").disabled = true;
 };
 $("inspector").onsubmit = async (event) => {
   event.preventDefault();
@@ -374,10 +478,17 @@ $("inspector").onsubmit = async (event) => {
   f.globalCut = cutout && (!existingCut || !!f.globalCut);
   f.mode = cutout ? "cut" : "add";
   delete f.transparent;
-  if(f.type === "text") f.text = $("textValue").value;
+  const fields = event.currentTarget.elements;
+  if (f.type === "text") {
+    const length = fields.namedItem("length").valueAsNumber;
+    if (f.length !== undefined || length >= 0.01 && length <= 5000) f.length = length;
+    f.rotation = fields.namedItem("rotation").valueAsNumber;
+    f.weight = Number($("textWeight").value);
+    f.text = $("textValue").value;
+  }
   f.name = $("featureName").value.trim();
   for (const key of dimensions[originalType])
-    f[key] = event.currentTarget.elements.namedItem(key).valueAsNumber;
+    if (key !== "size") f[key] = fields.namedItem(key).valueAsNumber;
   await commit(next);
 };
 document.querySelectorAll("[data-add]").forEach(
@@ -397,7 +508,7 @@ $("undo").onclick = () => commit(undo.at(-1), "undo");
 $("redo").onclick = () => commit(redo.at(-1), "redo");
 $("fit").onclick = () => viewer?.fit();
 function updateDimensions() {
-  viewer?.select(model?.features.find(f => f.id === selected),
+  viewer?.select(moveDraft?.feature ?? model?.features.find(f => f.id === selected),
     $("measure").getAttribute("aria-pressed") === "true");
 }
 $("measure").onclick = () => {
@@ -527,7 +638,7 @@ try {
       renderEditor();
       const row = $("tree").querySelector('[aria-pressed="true"]');
       if (row) $("tree").scrollTop += row.getBoundingClientRect().top - $("tree").getBoundingClientRect().top;
-    });
+    }, previewMove);
   } catch {
     note(
       "3D表示にはWebGL 2対応ブラウザが必要です。寸法編集と出力は使用できます。",

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-export function createView(host, onPick) {
+export function createView(host, onPick, onMove) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe5eae7);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -46,25 +46,74 @@ export function createView(host, onPick) {
   highlight.color.set(0x37aab0);
   const overlay = host.querySelector("#dimension-lines");
   const pen = overlay.getContext("2d");
-  let partBounds;
+  let textBounds;
   const ray = new THREE.Raycaster();
   const pointers = new Set();
-  let tap;
+  let tap, moveAxis, drag;
   const surface = renderer.domElement;
+  function setRay(e) {
+    const r = surface.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(
+      2*(e.clientX-r.left)/r.width-1, 1-2*(e.clientY-r.top)/r.height,
+    ), camera);
+  }
+  function dragPoint(e, current) {
+    if (current.plane) {
+      setRay(e);
+      return ray.ray.intersectPlane(current.plane, new THREE.Vector3());
+    }
+    const dx = (e.clientX - current.x) * current.unitsPerPixel;
+    const dy = (current.y - e.clientY) * current.unitsPerPixel;
+    if (moveAxis === "z") return new THREE.Vector3(0, 0, dy / current.verticalScale);
+    return new THREE.Vector3(dx, dy, 0).applyAxisAngle(
+      new THREE.Vector3(0, 0, 1), current.horizontalAngle,
+    );
+  }
   surface.addEventListener("pointerdown", e => {
+    if (moveAxis) {
+      if (drag || e.button !== 0 || !selection) return;
+      const direction = camera.getWorldDirection(new THREE.Vector3());
+      const plane = moveAxis === "xy" && Math.abs(direction.z) > 0.15
+        ? new THREE.Plane(new THREE.Vector3(0,0,1), -(selection.z ?? 0))
+        : null;
+      drag = {
+        id: e.pointerId, x: e.clientX, y: e.clientY, plane,
+        position: new THREE.Vector3(selection.x, selection.y, selection.z ?? 0),
+        unitsPerPixel: (camera.top-camera.bottom) / (camera.zoom*surface.clientHeight),
+        verticalScale: Math.max(0.25, Math.hypot(direction.x, direction.y)),
+        horizontalAngle: Math.atan2(direction.y, direction.x) - Math.PI / 2,
+      };
+      drag.start = dragPoint(e, drag);
+      surface.setPointerCapture(e.pointerId);
+      return;
+    }
     pointers.add(e.pointerId);
     tap = pointers.size === 1 && e.button === 0 ? [e.clientX,e.clientY] : null;
   });
   surface.addEventListener("pointermove", e => {
+    if (drag?.id === e.pointerId) {
+      const point = dragPoint(e, drag);
+      if (point && drag.start) {
+        point.sub(drag.start);
+        onMove(point.toArray().map((delta, axis) => drag.position.getComponent(axis) + Math.round(delta*10)/10));
+      }
+      return;
+    }
     if (tap && Math.hypot(e.clientX-tap[0],e.clientY-tap[1]) > 5) tap = null;
   });
-  surface.addEventListener("pointercancel", e => { pointers.delete(e.pointerId); tap=null; });
+  function endPointer(e) {
+    if (drag?.id === e.pointerId) drag = undefined;
+    pointers.delete(e.pointerId);
+    tap = null;
+  }
+  surface.addEventListener("pointercancel", endPointer);
+  surface.addEventListener("lostpointercapture", endPointer);
   surface.addEventListener("pointerup", e => {
+    if (moveAxis) return endPointer(e);
     pointers.delete(e.pointerId);
     if (!tap || !mesh) return;
     tap=null;
-    const r=surface.getBoundingClientRect();
-    ray.setFromCamera(new THREE.Vector2(2*(e.clientX-r.left)/r.width-1,1-2*(e.clientY-r.top)/r.height),camera);
+    setRay(e);
     const hit=ray.intersectObject(mesh,false)[0];
     const index=hit?.faceIndex*3;
     onPick(runs.find(run=>index>=run.start && index<run.start+run.count)?.id);
@@ -111,12 +160,14 @@ export function createView(host, onPick) {
         dimension([cx,cy,z],[cx-d,cy+d,z],f.radius,-10);
       }
     } else if (f.type==="text") {
-      const box=partBounds?.get(f.id);
+      const box=textBounds?.get(f.id);
       if (!box) return;
       const [l,b]=box.min,[r,t]=box.max;
-      dimension([l,b,z],[r,b,z],Number((r-l).toFixed(2)),18);
-      dimension([r,b,z],[r,t,z],f.size,16);
-      if(!f.through) dimension([r,y,f.z],[r,y,z],f.height,18);
+      const angle = THREE.MathUtils.degToRad(f.rotation ?? 0);
+      const point = (u,v,h=z) => [x+u*Math.cos(angle)-v*Math.sin(angle), y+u*Math.sin(angle)+v*Math.cos(angle), h];
+      dimension(point(l,b),point(r,b),Number((r-l).toFixed(2)),18);
+      dimension(point(r,b),point(r,t),Number((t-b).toFixed(2)),16);
+      if(!f.through) dimension(point(r,0,f.z),point(r,0),f.height,18);
     } else {
       const diameter=f.type==="gear" ? f.module*(f.teeth+2) : f.diameter;
       const r=diameter/2;
@@ -194,6 +245,7 @@ export function createView(host, onPick) {
         }
       mesh = edges = null;
       bounds = data?.bounds;
+      textBounds = data?.textBounds;
       if (data) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute(
@@ -202,7 +254,6 @@ export function createView(host, onPick) {
         );
         geometry.setIndex(new THREE.BufferAttribute(data.triangles, 1));
         geometry.computeVertexNormals();
-        partBounds=data.partBounds;
         runs=data.runs;
         for(const run of runs) geometry.addGroup(run.start,run.count,0);
         mesh = new THREE.Mesh(geometry, [material,highlight]);
@@ -217,6 +268,14 @@ export function createView(host, onPick) {
       else render();
     },
     fit,
+    move(axis) {
+      if (drag && surface.hasPointerCapture(drag.id)) surface.releasePointerCapture(drag.id);
+      drag = undefined;
+      tap = null;
+      moveAxis = axis;
+      controls.enabled = !axis;
+      host.dataset.moving = String(!!axis);
+    },
     zoom(factor) {
       camera.zoom = THREE.MathUtils.clamp(camera.zoom * factor, 0.05, 30);
       camera.updateProjectionMatrix();

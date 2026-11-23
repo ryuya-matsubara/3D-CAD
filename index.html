@@ -45,6 +45,11 @@
             <div class="viewControls">
               <button id="measure" aria-pressed="false">寸法</button><button id="pin" aria-pressed="false">ビューを固定</button>
             </div>
+            <div class="moveControls" hidden>
+              <button id="movePlane" type="button" aria-label="上下方向に切り替え" hidden>XY</button>
+              <button id="moveCancel" type="button" aria-label="移動を取り消す" hidden>×</button>
+              <button id="moveShape" type="button" aria-label="形状を移動" title="形状を移動">✋</button>
+            </div>
             <canvas id="axis" width="160" height="160" aria-label="XYZ座標軸"></canvas><canvas id="dimension-lines" aria-label="選択形状の寸法線"></canvas><div class="zoom">
               <button id="zoomOut" aria-label="縮小">−</button
               ><button id="fit">全体表示</button
@@ -86,6 +91,13 @@
             /></label>
             <label><input type="checkbox" id="cutout">透過</label>
             <label id="textRow" class="nameLabel">文字列<input id="textValue" maxlength="64"></label>
+            <label id="weightRow" class="nameLabel" hidden>文字太さ
+              <select id="textWeight">
+                <option value="400">標準</option>
+                <option value="500">中太</option>
+                <option value="700">太字</option>
+              </select>
+            </label>
             <div id="fields"></div>
             <button type="submit" class="apply">変更を適用</button>
           </form>
