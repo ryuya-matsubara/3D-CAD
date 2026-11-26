@@ -76,9 +76,12 @@
             </div>
           </div>
           <div class="palette">
-            <button data-add="box">＋ プレート</button
-            ><button data-add="cylinder">＋ 円柱</button
-            ><button data-add="text">＋ テキスト</button><button data-add="gear">＋ 歯車</button>
+            <button data-add="box">＋ プレート</button>
+            <button data-add="triangle">＋ 三角形</button>
+            <button data-add="circle">＋ 円</button>
+            <button data-add="cylinder">＋ 円柱</button>
+            <button data-add="text">＋ テキスト</button>
+            <button data-add="gear">＋ 歯車</button>
           </div>
           <div class="treeTitle">
             <h3>形状ツリー</h3>
@@ -95,6 +98,13 @@
             /></label>
             <label><input type="checkbox" id="cutout">透過</label>
             <label id="textRow" class="nameLabel">文字列<input id="textValue" maxlength="64"></label>
+            <label id="planeRow" class="nameLabel" hidden>置く面
+              <select id="profilePlane">
+                <option value="xy">XY（水平）</option>
+                <option value="xz">XZ（縦）</option>
+                <option value="yz">YZ（縦）</option>
+              </select>
+            </label>
             <label id="weightRow" class="nameLabel" hidden>文字太さ
               <select id="textWeight">
                 <option value="400">標準</option>

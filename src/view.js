@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { isPlanar } from "./model.js";
+import { profileFrame, triangleProfile } from "./templates.js";
 
 export function createView(host, onPick, onMove) {
   const scene = new THREE.Scene();
@@ -175,7 +177,23 @@ export function createView(host, onPick, onMove) {
       pen.fillStyle="#153448";pen.fillText(label,0,-4);pen.restore();
     }
     const {x,y}=f, z=f.type==="hole" || (f.mode==="cut" && f.through) ? holeTop : f.z+f.height;
-    if(f.type==="box") {
+    if (isPlanar(f.type)) {
+      const [u, v, n, origin] = profileFrame(f);
+      const level = f.through && f.mode === "cut" ? holeTop - f.z : f.height;
+      const point = (a, b, thickness = level) => origin.map((o, i) => o + a*u[i] + b*v[i] + thickness*n[i]);
+      let edge;
+      if (f.type === "triangle") {
+        const [left, right, apex] = triangleProfile(f);
+        dimension(point(...left), point(...right), f.width, 24);
+        dimension(point(apex[0], left[1]), point(...apex), f.profileHeight, 16);
+        edge = right;
+      } else {
+        const r = f.diameter / 2;
+        dimension(point(-r, 0), point(r, 0), f.diameter, -10);
+        edge = [r, 0];
+      }
+      if (!f.through) dimension(point(...edge, 0), point(...edge), f.height, 18);
+    } else if(f.type==="box") {
       const l=x-f.width/2,r=x+f.width/2,b=y-f.depth/2,t=y+f.depth/2;
       dimension([l,b+f.radius,z],[r,b+f.radius,z],f.width,24);
       dimension([r-f.radius,b,z],[r-f.radius,t,z],f.depth,20);

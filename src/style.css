@@ -89,7 +89,7 @@ header {
   display: flex;
   gap: 6px;
 }
-#textWeight { width: 100%; }
+#textWeight, #profilePlane { width: 100%; }
 .headActions button {
   background: #293e34;
   color: white;

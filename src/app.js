@@ -5,7 +5,7 @@ import "@fontsource/noto-sans-jp/700.css";
 import { textFont, textProfile } from "./templates.js";
 import init from "manifold-3d";
 import wasm from "manifold-3d/manifold.wasm?url";
-import { labels, dimensions, feature, sample, validate } from "./model.js";
+import { labels, dimensions, feature, isPlanar, sample, validate } from "./model.js";
 import { buildSolid } from "./solid.js";
 import { createView } from "./view.js";
 import { binarySTL, threeMF } from "./export.js";
@@ -189,14 +189,16 @@ function renderEditor() {
     });
     row.className = "shape";
     row.setAttribute("aria-pressed", String(selected === f.id));
-    const symbol = el("span", { box: "▱", cylinder: "◉", hole: "⊖", text:"T", gear:"⚙" }[f.type]);
+    const symbol = el("span", { box: "▱", triangle: "△", circle: "○", cylinder: "◉", hole: "⊖", text:"T", gear:"⚙" }[f.type]);
     symbol.setAttribute("aria-hidden", "true");
     row.append(
       symbol,
       el("span", f.name + (f.type === "hole" || f.mode === "cut" ? "（透過）" : "")),
       el(
         "small",
-        f.type === "text" ? f.text : f.type === "gear" ? f.teeth+"歯" : f.type === "box" ? f.width + " × " + f.depth : "Ø " + f.diameter,
+        f.type === "text" ? f.text : f.type === "gear" ? f.teeth+"歯" :
+          f.type === "triangle" ? f.width + " × " + f.profileHeight :
+          f.type === "box" ? f.width + " × " + f.depth : "Ø " + f.diameter,
       ),
     );
     tree.append(row);
@@ -211,12 +213,16 @@ function renderEditor() {
     $("cutout").checked = f.type === "hole" || f.mode === "cut";
     $("textRow").hidden = f.type !== "text";
     $("weightRow").hidden = f.type !== "text";
+    $("planeRow").hidden = !isPlanar(f.type);
+    $("profilePlane").value = f.plane ?? "xy";
     $("textValue").value = f.text || "";
     $("textWeight").value = f.weight ?? 400;
     const keys = f.type === "text" ? ["length", "rotation", ...dimensions.text.slice(1)] : dimensions[f.type];
     for (const key of keys) {
-      const unit = key === "teeth" ? "" : key === "rotation" ? " (°)" : " (mm)";
-      const label = el("label", labels[key] + unit),
+      const unit = key === "teeth" ? "" : key === "rotation" ? " (°)" : key === "apex" ? " (%)" : " (mm)";
+      const caption = key === "height" && isPlanar(f.type) ? "厚さ" :
+        key === "width" && f.type === "triangle" ? "底辺" : labels[key];
+      const label = el("label", caption + unit),
         input = el("input");
       input.type = "number";
       input.step = "any";
@@ -232,6 +238,12 @@ function renderEditor() {
       if (key === "rotation") {
         input.min = -360;
         input.max = 360;
+      }
+      if (key === "apex") {
+        input.value = f.apex ?? 50;
+        input.min = 0;
+        input.max = 100;
+        input.title = "0%または100%で直角三角形";
       }
       if (key === "length" && f.length === undefined) {
         input.min = Math.min(0.01, input.valueAsNumber);
@@ -489,6 +501,10 @@ $("inspector").onsubmit = async (event) => {
     f.weight = Number($("textWeight").value);
     f.text = $("textValue").value;
   }
+  if (isPlanar(f.type)) {
+    f.plane = $("profilePlane").value;
+    if (f.plane !== "xy") f.through = false;
+  }
   f.name = $("featureName").value.trim();
   for (const key of dimensions[originalType])
     if (key !== "size") f[key] = fields.namedItem(key).valueAsNumber;
@@ -498,7 +514,7 @@ document.querySelectorAll("[data-add]").forEach(
   (b) =>
     (b.onclick = () => {
       const f = feature(b.dataset.add);
-      if (f.type === "text" && mesh) f.z = mesh.bounds.max[2];
+      if ((f.type === "text" || isPlanar(f.type)) && mesh) f.z = mesh.bounds.max[2];
       commit({ ...model, features: [...model.features, f] }, "edit", f.id);
     }),
 );

@@ -1,4 +1,12 @@
-export const types = { box: "プレート", cylinder: "円柱", hole: "円柱", text: "テキスト", gear: "歯車" };
+export const types = {
+  box: "プレート",
+  triangle: "三角形",
+  circle: "円",
+  cylinder: "円柱",
+  hole: "円柱",
+  text: "テキスト",
+  gear: "歯車",
+};
 export const labels = {
   length: "文字長さ", rotation: "回転", module: "モジュール", teeth: "歯数", bore: "軸穴径",
   width: "幅",
@@ -6,20 +14,30 @@ export const labels = {
   height: "高さ",
   radius: "角丸半径",
   diameter: "直径",
+  profileHeight: "三角形の高さ",
+  apex: "頂点位置",
   x: "中心 X",
   y: "中心 Y",
   z: "底面 Z",
 };
 export const dimensions = {
   box: ["width", "depth", "height", "radius", "x", "y", "z"],
+  triangle: ["width", "profileHeight", "height", "apex", "x", "y", "z"],
+  circle: ["diameter", "height", "x", "y", "z"],
   cylinder: ["diameter", "height", "x", "y", "z"],
   text: ["size","height","x","y","z"],
   gear: ["teeth","module","bore","height","x","y","z"],
   hole: ["diameter", "x", "y"],
 };
 
+export const isPlanar = type => type === "triangle" || type === "circle";
+
 export function feature(type, name = types[type]) {
   const base = { id: crypto.randomUUID(), type, name, x: 0, y: 0 };
+  if (type === "triangle")
+    return { ...base, width: 40, profileHeight: 30, apex: 50, height: 3, plane: "xy", z: 0 };
+  if (type === "circle")
+    return { ...base, diameter: 24, height: 3, plane: "xy", z: 0 };
   if(type === "text") return {...base, text:"CAD",size:12,length:36,rotation:0,weight:400,height:3,z:0};
   if(type === "gear") return {...base, teeth:20,module:1.5,bore:5,height:6,z:0};
   if (type === "box")
@@ -83,6 +101,12 @@ export function validate(model) {
     )
       throw Error("形状の名前または識別子が無効です。");
     if (f.mode !== undefined && !["add","cut"].includes(f.mode)) throw Error("合成方法が無効です。");
+    if (isPlanar(f.type)) {
+      if (f.plane !== undefined && !["xy", "xz", "yz"].includes(f.plane))
+        throw Error("置く面をXY、XZ、YZから選択してください。");
+      if (f.mode === "cut" && f.through && (f.plane ?? "xy") !== "xy")
+        throw Error("縦向きの透過は厚さと位置で指定してください。");
+    }
     if (f.type === "text" && (typeof f.text !== "string" || !f.text.trim() || [...f.text].length > 32)) throw Error("文字列は1〜32文字で指定してください。");
     if (f.type === "text") {
       if (f.length !== undefined && (!Number.isFinite(f.length) || f.length < 0.01 || f.length > 5000))
@@ -96,6 +120,11 @@ export function validate(model) {
     ids.add(f.id);
     for (const key of dimensions[f.type]) {
       const n = f[key];
+      if (key === "apex") {
+        if (n !== undefined && (!Number.isFinite(n) || n < 0 || n > 100))
+          throw Error("頂点位置は0〜100%で指定してください。");
+        continue;
+      }
       if (
         !Number.isFinite(n) ||
         Math.abs(n) > 5000 ||

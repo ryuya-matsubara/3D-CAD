@@ -1,5 +1,5 @@
-import { gearProfile, textProfile } from "./templates.js";
-import { validate } from "./model.js";
+import { gearProfile, profileFrame, textProfile, triangleProfile } from "./templates.js";
+import { isPlanar, validate } from "./model.js";
 
 // Historical cuts follow tree order. New cutouts subtract from the complete model.
 export function buildSolid(kernel, model) {
@@ -39,19 +39,30 @@ export function buildSolid(kernel, model) {
             ? keep(inner.offset(f.radius, "Round", 2, 96))
             : inner;
           piece = keep(outline.extrude(height));
-        } else if (f.type === "text" || f.type === "gear") {
-          const profile = f.type === "text" ? textProfile(f) : null;
-          if (profile) textBounds.set(f.id, { min: profile.min, max: profile.max });
-          const rings = profile ? profile.rings : gearProfile(f);
+        } else if (f.type === "text" || f.type === "gear" || f.type === "triangle") {
+          let rings;
+          if (f.type === "text") {
+            const { min, max, rings: textRings } = textProfile(f);
+            textBounds.set(f.id, { min, max });
+            rings = textRings;
+          } else {
+            rings = f.type === "gear" ? gearProfile(f) : [triangleProfile(f)];
+          }
           const outline = keep(new CrossSection(rings, "EvenOdd"));
           const extruded = keep(outline.extrude(height));
-          piece = f.rotation && profile ? keep(extruded.rotate([0, 0, f.rotation])) : extruded;
+          piece = f.type === "text" && f.rotation ? keep(extruded.rotate([0, 0, f.rotation])) : extruded;
         } else {
           piece = keep(
             Manifold.cylinder(height, f.diameter / 2, f.diameter / 2, 96),
           );
         }
-        const translated = keep(piece.translate([f.x, f.y, bottom]));
+        let translated;
+        if (isPlanar(f.type)) {
+          const [u, v, n, origin] = profileFrame({ ...f, z: bottom, height });
+          translated = keep(piece.transform([...u, 0, ...v, 0, ...n, 0, ...origin, 1]));
+        } else {
+          translated = keep(piece.translate([f.x, f.y, bottom]));
+        }
         const placed = keep(translated.asOriginal());
         owners.set(placed.originalID(), f.id);
         partBounds.set(f.id, placed.boundingBox());

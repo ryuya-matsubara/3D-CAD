@@ -1,5 +1,26 @@
 import { contours } from "d3-contour";
 
+export function triangleProfile(feature) {
+  const halfWidth = feature.width / 2;
+  const halfHeight = feature.profileHeight / 2;
+  const apex = feature.width * (feature.apex ?? 50) / 100 - halfWidth;
+  return [[-halfWidth, -halfHeight], [halfWidth, -halfHeight], [apex, halfHeight]];
+}
+
+// The profile is centered in its plane. The model position still uses a world-Z bottom.
+export function profileFrame(feature) {
+  const { x, y, z, height } = feature;
+  const halfSpan = (feature.type === "circle" ? feature.diameter : feature.profileHeight) / 2;
+  switch (feature.plane) {
+    case "xz":
+      return [[1, 0, 0], [0, 0, 1], [0, -1, 0], [x, y + height / 2, z + halfSpan]];
+    case "yz":
+      return [[0, 1, 0], [0, 0, 1], [1, 0, 0], [x - height / 2, y, z + halfSpan]];
+    default:
+      return [[1, 0, 0], [0, 1, 0], [0, 0, 1], [x, y, z]];
+  }
+}
+
 // Standard 20 degree involute flanks, with radial clearance below the base circle.
 export function gearProfile(f) {
   const pitch = f.module * f.teeth / 2;
