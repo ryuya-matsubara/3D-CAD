@@ -175,6 +175,9 @@ function textLength(f) {
   const { min, max } = mesh?.textBounds.get(f.id) ?? textProfile(f);
   return max[0] - min[0];
 }
+function displayFeatureName(f) {
+  return (f.type === "cylinder" || f.type === "hole") && f.name === "円柱" ? "円" : f.name;
+}
 function renderEditor() {
   $("rename").textContent = model.title;
   $("count").textContent = model.features.length + " 件";
@@ -189,11 +192,11 @@ function renderEditor() {
     });
     row.className = "shape";
     row.setAttribute("aria-pressed", String(selected === f.id));
-    const symbol = el("span", { box: "▱", triangle: "△", circle: "○", cylinder: "◉", hole: "⊖", text:"T", gear:"⚙" }[f.type]);
+    const symbol = el("span", { box: "▱", triangle: "△", circle: "○", cylinder: "○", hole: "⊖", text:"T", gear:"⚙" }[f.type]);
     symbol.setAttribute("aria-hidden", "true");
     row.append(
       symbol,
-      el("span", f.name + (f.type === "hole" || f.mode === "cut" ? "（透過）" : "")),
+      el("span", displayFeatureName(f) + (f.type === "hole" || f.mode === "cut" ? "（透過）" : "")),
       el(
         "small",
         f.type === "text" ? f.text : f.type === "gear" ? f.teeth+"歯" :
@@ -209,7 +212,7 @@ function renderEditor() {
   dirty = false;
   $("fields").replaceChildren();
   if (f) {
-    $("featureName").value = f.name;
+    $("featureName").value = displayFeatureName(f);
     $("cutout").checked = f.type === "hole" || f.mode === "cut";
     $("textRow").hidden = f.type !== "text";
     $("weightRow").hidden = f.type !== "text";
@@ -220,7 +223,7 @@ function renderEditor() {
     const keys = f.type === "text" ? ["length", "rotation", ...dimensions.text.slice(1)] : dimensions[f.type];
     for (const key of keys) {
       const unit = key === "teeth" ? "" : key === "rotation" ? " (°)" : key === "apex" ? " (%)" : " (mm)";
-      const caption = key === "height" && isPlanar(f.type) ? "厚さ" :
+      const caption = key === "height" && (isPlanar(f.type) || f.type === "cylinder") ? "厚さ" :
         key === "width" && f.type === "triangle" ? "底辺" : labels[key];
       const label = el("label", caption + unit),
         input = el("input");

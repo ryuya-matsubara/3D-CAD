@@ -2,8 +2,8 @@ export const types = {
   box: "プレート",
   triangle: "三角形",
   circle: "円",
-  cylinder: "円柱",
-  hole: "円柱",
+  cylinder: "円",
+  hole: "円",
   text: "テキスト",
   gear: "歯車",
 };
