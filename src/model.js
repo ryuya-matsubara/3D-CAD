@@ -8,7 +8,10 @@ export const types = {
   gear: "歯車",
 };
 export const labels = {
-  length: "文字長さ", rotation: "回転", module: "モジュール", teeth: "歯数", bore: "軸穴径",
+  length: "文字長さ", module: "モジュール", teeth: "歯数", bore: "軸穴径",
+  rotation: "XY回転",
+  rotationY: "XZ回転",
+  rotationX: "YZ回転",
   width: "幅",
   depth: "奥行き",
   height: "高さ",
@@ -31,6 +34,9 @@ export const dimensions = {
 };
 
 export const isPlanar = type => type === "triangle" || type === "circle";
+export const textRotationKeys = ["rotation", "rotationY", "rotationX"];
+export const textAngles = f => [f.rotationX ?? 0, f.rotationY ?? 0, f.rotation ?? 0];
+export const textIsTilted = f => (f.rotationX ?? 0) % 360 !== 0 || (f.rotationY ?? 0) % 360 !== 0;
 
 export function feature(type, name = types[type]) {
   const base = { id: crypto.randomUUID(), type, name, x: 0, y: 0 };
@@ -111,8 +117,13 @@ export function validate(model) {
     if (f.type === "text") {
       if (f.length !== undefined && (!Number.isFinite(f.length) || f.length < 0.01 || f.length > 5000))
         throw Error("文字長さは0.01〜5000 mmで指定してください。");
-      if (f.rotation !== undefined && (!Number.isFinite(f.rotation) || Math.abs(f.rotation) > 360))
-        throw Error("回転は−360〜360度で指定してください。");
+      for (const key of textRotationKeys) {
+        const angle = f[key];
+        if (angle !== undefined && (!Number.isFinite(angle) || Math.abs(angle) > 360))
+          throw Error(labels[key] + "は−360〜360度で指定してください。");
+      }
+      if (f.mode === "cut" && f.through && textIsTilted(f))
+        throw Error("傾けた文字の透過は高さと位置で指定してください。");
       if (f.weight !== undefined && ![400, 500, 700].includes(f.weight))
         throw Error("文字太さを選択してください。");
     }

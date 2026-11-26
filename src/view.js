@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { isPlanar } from "./model.js";
+import { isPlanar, textAngles } from "./model.js";
 import { profileFrame, triangleProfile } from "./templates.js";
 
 export function createView(host, onPick, onMove) {
@@ -206,11 +206,15 @@ export function createView(host, onPick, onMove) {
       const box=textBounds?.get(f.id);
       if (!box) return;
       const [l,b]=box.min,[r,t]=box.max;
-      const angle = THREE.MathUtils.degToRad(f.rotation ?? 0);
-      const point = (u,v,h=z) => [x+u*Math.cos(angle)-v*Math.sin(angle), y+u*Math.sin(angle)+v*Math.cos(angle), h];
+      // Manifold applies rotations about the global X, Y, and Z axes in that order.
+      const rotation = new THREE.Euler(...textAngles(f).map(THREE.MathUtils.degToRad), "ZYX");
+      const front = f.mode === "cut" && f.through ? holeTop - box.bottom : f.height;
+      const origin = new THREE.Vector3(x, y, box.bottom);
+      const point = (u, v, h = front) =>
+        new THREE.Vector3(u, v, h).applyEuler(rotation).add(origin).toArray();
       dimension(point(l,b),point(r,b),Number((r-l).toFixed(2)),18);
       dimension(point(r,b),point(r,t),Number((t-b).toFixed(2)),16);
-      if(!f.through) dimension(point(r,0,f.z),point(r,0),f.height,18);
+      if(!f.through) dimension(point(r,0,0),point(r,0),f.height,18);
     } else {
       const diameter=f.type==="gear" ? f.module*(f.teeth+2) : f.diameter;
       const r=diameter/2;

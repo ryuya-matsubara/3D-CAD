@@ -5,7 +5,7 @@ import "@fontsource/noto-sans-jp/700.css";
 import { textFont, textProfile } from "./templates.js";
 import init from "manifold-3d";
 import wasm from "manifold-3d/manifold.wasm?url";
-import { labels, dimensions, feature, isPlanar, sample, validate } from "./model.js";
+import { labels, dimensions, feature, isPlanar, sample, textIsTilted, textRotationKeys, validate } from "./model.js";
 import { buildSolid } from "./solid.js";
 import { createView } from "./view.js";
 import { binarySTL, threeMF } from "./export.js";
@@ -220,9 +220,10 @@ function renderEditor() {
     $("profilePlane").value = f.plane ?? "xy";
     $("textValue").value = f.text || "";
     $("textWeight").value = f.weight ?? 400;
-    const keys = f.type === "text" ? ["length", "rotation", ...dimensions.text.slice(1)] : dimensions[f.type];
+    const keys = f.type === "text" ? ["length", "height", ...textRotationKeys, "x", "y", "z"] : dimensions[f.type];
     for (const key of keys) {
-      const unit = key === "teeth" ? "" : key === "rotation" ? " (°)" : key === "apex" ? " (%)" : " (mm)";
+      const angle = textRotationKeys.includes(key);
+      const unit = key === "teeth" ? "" : angle ? " (°)" : key === "apex" ? " (%)" : " (mm)";
       const caption = key === "height" && (isPlanar(f.type) || f.type === "cylinder") ? "厚さ" :
         key === "width" && f.type === "triangle" ? "底辺" : labels[key];
       const label = el("label", caption + unit),
@@ -238,7 +239,7 @@ function renderEditor() {
           ? 0
           : 0.01;
       input.max = 5000;
-      if (key === "rotation") {
+      if (angle) {
         input.min = -360;
         input.max = 360;
       }
@@ -255,8 +256,8 @@ function renderEditor() {
       label.append(input);
       const cell = el("div");
       cell.append(label);
+      if (key === "rotation" || key === "x") cell.style.gridColumnStart = "1";
       if (["x", "y", "z"].includes(key)) {
-        if (key === "x") cell.style.gridColumnStart = "1";
         const movement = el("div");
         movement.className = "movement";
         for (const delta of [-1, 1]) {
@@ -500,7 +501,8 @@ $("inspector").onsubmit = async (event) => {
   if (f.type === "text") {
     const length = fields.namedItem("length").valueAsNumber;
     if (f.length !== undefined || length >= 0.01 && length <= 5000) f.length = length;
-    f.rotation = fields.namedItem("rotation").valueAsNumber;
+    for (const key of textRotationKeys) f[key] = fields.namedItem(key).valueAsNumber;
+    if (textIsTilted(f)) f.through = false;
     f.weight = Number($("textWeight").value);
     f.text = $("textValue").value;
   }

@@ -1,5 +1,5 @@
 import { gearProfile, profileFrame, textProfile, triangleProfile } from "./templates.js";
-import { isPlanar, validate } from "./model.js";
+import { isPlanar, textAngles, textIsTilted, validate } from "./model.js";
 
 // Historical cuts follow tree order. New cutouts subtract from the complete model.
 export function buildSolid(kernel, model) {
@@ -39,18 +39,18 @@ export function buildSolid(kernel, model) {
             ? keep(inner.offset(f.radius, "Round", 2, 96))
             : inner;
           piece = keep(outline.extrude(height));
-        } else if (f.type === "text" || f.type === "gear" || f.type === "triangle") {
-          let rings;
-          if (f.type === "text") {
-            const { min, max, rings: textRings } = textProfile(f);
-            textBounds.set(f.id, { min, max });
-            rings = textRings;
-          } else {
-            rings = f.type === "gear" ? gearProfile(f) : [triangleProfile(f)];
-          }
+        } else if (f.type === "text") {
+          const { min, max, rings } = textProfile(f);
           const outline = keep(new CrossSection(rings, "EvenOdd"));
           const extruded = keep(outline.extrude(height));
-          piece = f.type === "text" && f.rotation ? keep(extruded.rotate([0, 0, f.rotation])) : extruded;
+          const angles = textAngles(f);
+          piece = angles.some(Boolean) ? keep(extruded.rotate(angles)) : extruded;
+          if (textIsTilted(f)) bottom -= piece.boundingBox().min[2];
+          textBounds.set(f.id, { min, max, bottom });
+        } else if (f.type === "gear" || f.type === "triangle") {
+          const rings = f.type === "gear" ? gearProfile(f) : [triangleProfile(f)];
+          const outline = keep(new CrossSection(rings, "EvenOdd"));
+          piece = keep(outline.extrude(height));
         } else {
           piece = keep(
             Manifold.cylinder(height, f.diameter / 2, f.diameter / 2, 96),
